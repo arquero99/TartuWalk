@@ -1,0 +1,1472 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tartu Walker — Rutas Peatonales</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+/* ── Reset & Variables ─────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:         #0B0F16;
+  --panel:      #131820;
+  --panel2:     #1A2030;
+  --border:     #252E40;
+  --border2:    #2E3A50;
+  --teal:       #2DD4BF;
+  --teal-dim:   rgba(45,212,191,.12);
+  --green:      #34D399;
+  --amber:      #FBBF24;
+  --red:        #F87171;
+  --text:       #DCE4F0;
+  --muted:      #5A6A80;
+  --muted2:     #8898AA;
+  --sidebar-w:  370px;
+  --font-ui:    'Outfit', sans-serif;
+  --font-serif: 'Cormorant Garamond', serif;
+  --font-mono:  'IBM Plex Mono', monospace;
+}
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  font-family: var(--font-ui);
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ── Layout ─────────────────────────────────────────── */
+#app { display: flex; height: 100vh; }
+
+#sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  z-index: 10;
+}
+
+/* Subtle grid texture on sidebar */
+#sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: .15;
+  pointer-events: none;
+}
+
+#sidebar-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+#sidebar-scroll::-webkit-scrollbar { width: 3px; }
+#sidebar-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+#map { flex: 1; position: relative; }
+
+/* ── Brand ──────────────────────────────────────────── */
+.brand {
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+.brand-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--teal);
+  margin-bottom: 6px;
+}
+
+.brand h1 {
+  font-family: var(--font-serif);
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1;
+  letter-spacing: -.5px;
+}
+
+.brand h1 em {
+  font-style: italic;
+  color: var(--teal);
+}
+
+.brand-sub {
+  font-size: 11.5px;
+  color: var(--muted2);
+  margin-top: 5px;
+  font-weight: 300;
+}
+
+/* ── Inputs ─────────────────────────────────────────── */
+.inputs-section {
+  padding: 20px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.input-group { display: flex; flex-direction: column; gap: 7px; }
+
+.input-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted2);
+}
+
+.label-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.label-dot.start { background: var(--teal); }
+.label-dot.end   { background: var(--red); box-shadow: 0 0 0 2px rgba(248,113,113,.2); }
+
+.input-field-wrap {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: border-color .2s, box-shadow .2s;
+}
+
+.input-field-wrap:focus-within {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(45,212,191,.1);
+}
+
+.input-field-wrap input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 11px 14px;
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  color: var(--text);
+}
+
+.input-field-wrap input::placeholder { color: var(--muted); }
+
+.geocoded-badge {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--teal);
+  padding: 0 14px 9px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity .3s, transform .3s;
+}
+
+.geocoded-badge.visible { opacity: 1; transform: translateY(0); }
+
+/* ── Buttons ─────────────────────────────────────────── */
+.btn-row {
+  display: flex;
+  gap: 8px;
+  padding: 16px 20px 20px;
+}
+
+.btn-calc {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #1A9C8E, #2DD4BF);
+  color: #051210;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter .2s, transform .1s, box-shadow .2s;
+  box-shadow: 0 4px 20px rgba(45,212,191,.25);
+}
+
+.btn-calc:hover { filter: brightness(1.1); box-shadow: 0 6px 28px rgba(45,212,191,.4); }
+.btn-calc:active { transform: scale(.97); }
+.btn-calc:disabled { opacity: .45; cursor: not-allowed; filter: none; box-shadow: none; }
+
+.btn-clear {
+  width: 44px; height: 44px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted2);
+  font-size: 16px;
+  cursor: pointer;
+  transition: border-color .2s, color .2s;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.btn-clear:hover { border-color: var(--red); color: var(--red); }
+
+/* ── Divider ─────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0 20px;
+}
+
+/* ── Route Info ──────────────────────────────────────── */
+.route-info {
+  padding: 18px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.section-label {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.stat-card {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.stat-num {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--teal);
+  line-height: 1.1;
+}
+
+.stat-lbl {
+  font-size: 10.5px;
+  color: var(--muted2);
+  margin-top: 3px;
+  font-weight: 300;
+}
+
+/* Quality bar */
+.quality-wrap {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.quality-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.quality-pct {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--green);
+}
+
+.quality-track {
+  height: 5px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.quality-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--amber), var(--teal), var(--green));
+  transition: width .7s cubic-bezier(.4,0,.2,1);
+}
+
+.quality-hints {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9.5px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+/* ── POI Section ─────────────────────────────────────── */
+.poi-section {
+  padding: 18px 20px 20px;
+}
+
+.poi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.poi-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--teal);
+  background: var(--teal-dim);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.poi-list { display: flex; flex-direction: column; gap: 2px; }
+
+.poi-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.poi-item:hover { background: var(--panel2); }
+
+.poi-icon {
+  font-size: 15px;
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.poi-name {
+  font-size: 12.5px;
+  color: var(--text);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.poi-dist {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+/* ── Cache status (footer) ───────────────────────────── */
+.cache-status {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.cache-indicator {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+  transition: background .4s;
+}
+
+.cache-indicator.loading { background: var(--amber); animation: pulse 1.2s infinite; }
+.cache-indicator.ready   { background: var(--green); }
+.cache-indicator.error   { background: var(--red); }
+
+@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.3 } }
+
+.cache-text {
+  font-size: 10.5px;
+  color: var(--muted);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Loading Overlay ─────────────────────────────────── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5,8,14,.7);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s;
+}
+
+.overlay.visible { opacity: 1; pointer-events: all; }
+
+.overlay-box {
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 36px 44px;
+  text-align: center;
+  min-width: 300px;
+  box-shadow: 0 30px 80px rgba(0,0,0,.6);
+}
+
+.spinner {
+  width: 44px; height: 44px;
+  border: 2.5px solid var(--border2);
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.overlay-msg {
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 20px;
+  font-weight: 300;
+}
+
+.overlay-step {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--teal);
+  margin-bottom: 14px;
+  letter-spacing: .5px;
+}
+
+.progress-track {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--teal), var(--green));
+  border-radius: 2px;
+  transition: width .35s ease;
+}
+
+/* ── Toast ───────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 13px 18px;
+  font-size: 13px;
+  z-index: 3000;
+  max-width: 340px;
+  transform: translateY(20px);
+  opacity: 0;
+  transition: all .3s cubic-bezier(.4,0,.2,1);
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  pointer-events: none;
+}
+
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-color: var(--green); color: var(--green); }
+.toast.error   { border-color: var(--red);   color: var(--red); }
+.toast.info    { border-color: var(--teal);  color: var(--teal); }
+
+/* ── Leaflet Overrides ───────────────────────────────── */
+.leaflet-popup-content-wrapper {
+  background: var(--panel) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border2) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5) !important;
+  font-family: var(--font-ui) !important;
+}
+
+.leaflet-popup-tip { background: var(--panel) !important; }
+
+.leaflet-popup-content {
+  font-size: 13px !important;
+  color: var(--text) !important;
+  margin: 10px 14px !important;
+}
+
+.leaflet-popup-content b { color: var(--teal); }
+.leaflet-popup-content small { color: var(--muted2); }
+
+.leaflet-control-zoom a {
+  background: var(--panel) !important;
+  color: var(--text) !important;
+  border-color: var(--border2) !important;
+}
+
+.leaflet-control-zoom a:hover { background: var(--panel2) !important; }
+
+/* ── Utility ─────────────────────────────────────────── */
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ─── SIDEBAR ──────────────────────────────────────── -->
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="brand-eyebrow">Tartu · Estonia · 58.38°N</div>
+      <h1>Tartu <em>Walker</em></h1>
+      <div class="brand-sub">Optimizador de rutas peatonales · OpenStreetMap</div>
+    </div>
+
+    <div id="sidebar-scroll">
+      <div class="inputs-section">
+        <div class="input-group">
+          <div class="input-label">
+            <span class="label-dot start"></span>
+            Origen
+          </div>
+          <div class="input-field-wrap">
+            <input type="text" id="inputA"
+              placeholder="Ej: Ülikooli 18"
+              onkeydown="if(event.key==='Enter')App.calculateRoute()" />
+          </div>
+          <div class="geocoded-badge" id="badgeA"></div>
+        </div>
+
+        <div class="input-group">
+          <div class="input-label">
+            <span class="label-dot end"></span>
+            Destino
+          </div>
+          <div class="input-field-wrap">
+            <input type="text" id="inputB"
+              placeholder="Ej: Riia 2"
+              onkeydown="if(event.key==='Enter')App.calculateRoute()" />
+          </div>
+          <div class="geocoded-badge" id="badgeB"></div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-calc" id="btnCalc" onclick="App.calculateRoute()">
+          <span>Calcular Ruta</span>
+          <span>→</span>
+        </button>
+        <button class="btn-clear" id="btnClear" onclick="App.clearRoute()" title="Limpiar ruta">✕</button>
+      </div>
+
+      <!-- Route stats -->
+      <div id="routeInfo" class="route-info hidden">
+        <div class="divider" style="margin:0 0 18px"></div>
+        <div class="section-label">Ruta calculada</div>
+        <div class="stats-grid" id="statsGrid"></div>
+        <div class="quality-wrap">
+          <div class="quality-header">
+            <span class="section-label">Calidad peatonal</span>
+            <span class="quality-pct" id="qualityPct">–</span>
+          </div>
+          <div class="quality-track">
+            <div class="quality-fill" id="qualityFill" style="width:0%"></div>
+          </div>
+          <div class="quality-hints">
+            <span>Calzada convencional</span>
+            <span>Vía óptima ✓</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- POIs -->
+      <div id="poiSection" class="poi-section hidden">
+        <div class="divider" style="margin:0 0 18px; margin-left:-20px; margin-right:-20px;"></div>
+        <div class="poi-header">
+          <span class="section-label">Puntos de interés</span>
+          <span class="poi-count" id="poiCount">0</span>
+        </div>
+        <div class="poi-list" id="poiList"></div>
+      </div>
+    </div>
+
+    <!-- Cache status footer -->
+    <div class="cache-status">
+      <div class="cache-indicator loading" id="cacheIndicator"></div>
+      <span class="cache-text" id="cacheText">Iniciando grafo de Tartu…</span>
+    </div>
+  </aside>
+
+  <!-- ─── MAP ────────────────────────────────────────────── -->
+  <main id="map"></main>
+</div>
+
+<!-- Loading overlay -->
+<div class="overlay" id="overlay">
+  <div class="overlay-box">
+    <div class="spinner"></div>
+    <div class="overlay-step" id="overlayStep">01 / 06</div>
+    <div class="overlay-msg" id="overlayMsg">Inicializando…</div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+
+<script>
+'use strict';
+
+// ════════════════════════════════════════════════════════════════
+// ██ CONFIG  — todos los parámetros ajustables en un lugar
+// ════════════════════════════════════════════════════════════════
+const CONFIG = {
+  MAP: {
+    CENTER: [58.3780, 26.7290],
+    ZOOM:   14,
+    TILE:   'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    ATTR:   '© <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
+  },
+
+  // Bounding-box completo de Tartu (para descarga inicial)
+  TARTU_BBOX: { S: 58.310, W: 26.590, N: 58.440, E: 26.820 },
+
+  // Margen alrededor del bbox A-B (≈400m)
+  BBOX_OFFSET: 0.004,
+
+  // Radio máximo de snapping dirección → nodo del grafo (metros)
+  NODE_SNAP_RADIUS: 100,
+
+  POI: {
+    MAX_RESULTS:  50,
+    BUFFER_DEG:   0.0015,   // buffer del bbox de la ruta (~150m)
+  },
+
+  CACHE: {
+    TTL_SIMPLE_MS:   24 * 3600e3,   // 24 h  — grafo simplificado de Tartu
+    TTL_DETAIL_MS:    6 * 3600e3,   //  6 h  — grafo detallado por bbox
+    DB: 'tartu_walker_v2',
+    VER: 1,
+    STORE: 'g',
+  },
+
+  // ── Sistema de costes aditivo ─────────────────────────────
+  // coste_final = distancia × max(MIN_MULT, 1.0 + Σ deltas)
+  COST: {
+    MIN_MULT: 0.1,
+
+    // Penalizaciones (delta > 0 → más caro → A* lo evita)
+    PENALTIES: {
+      main_road:        0.80,   // highway = primary|secondary|trunk
+      fast_tertiary:    0.40,   // tertiary sin sidewalk documentado
+      non_pedestrian:   0.50,   // sin designación foot-friendly
+      bad_surface:      0.30,   // superficie no pavimentada
+      no_lighting:      0.15,   // lit = no
+    },
+
+    // Bonificaciones (delta < 0 → más barato → A* lo prefiere)
+    BONUSES: {
+      footway_path:    -0.20,   // highway = footway|path|pedestrian
+      living_street:   -0.15,   // highway = living_street
+      green_area:      -0.10,   // leisure/landuse = parque/bosque
+      good_surface:    -0.05,   // surface = paved|asphalt|concrete…
+      lit:             -0.05,   // lit = yes
+    },
+  },
+
+  APIS: {
+    OVERPASS:  'https://overpass-api.de/api/interpreter',
+    NOMINATIM: 'https://nominatim.openstreetmap.org/search',
+  },
+
+  WALK_SPEED_MS: 1.389,   // 5 km/h
+};
+
+
+// ════════════════════════════════════════════════════════════════
+// ██ UTILS
+// ════════════════════════════════════════════════════════════════
+const Utils = {
+  haversine(la1, lo1, la2, lo2) {
+    const R = 6371000, toR = Math.PI / 180;
+    const dLa = (la2-la1)*toR, dLo = (lo2-lo1)*toR;
+    const a = Math.sin(dLa/2)**2 +
+              Math.cos(la1*toR)*Math.cos(la2*toR)*Math.sin(dLo/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  },
+
+  buildBbox(la1, lo1, la2, lo2) {
+    const off = CONFIG.BBOX_OFFSET;
+    return {
+      S: Math.min(la1,la2) - off, W: Math.min(lo1,lo2) - off,
+      N: Math.max(la1,la2) + off, E: Math.max(lo1,lo2) + off,
+    };
+  },
+
+  bboxStr(b) { return `${b.S},${b.W},${b.N},${b.E}`; },
+
+  fmtDist(m) {
+    return m >= 1000 ? `${(m/1000).toFixed(1)} km` : `${Math.round(m)} m`;
+  },
+
+  fmtTime(s) {
+    if (s < 60) return `<1 min`;
+    const m = Math.floor(s/60);
+    return m >= 60 ? `${Math.floor(m/60)}h ${m%60}min` : `${m} min`;
+  },
+
+  fmtCoord(la, lo) {
+    return `${la.toFixed(5)}°N  ${lo.toFixed(5)}°E`;
+  },
+};
+
+
+// ════════════════════════════════════════════════════════════════
+// ██ CACHE  (IndexedDB)
+// ════════════════════════════════════════════════════════════════
+const Cache = {
+  _db: null,
+
+  async _open() {
+    if (this._db) return this._db;
+    return new Promise((ok, fail) => {
+      const req = indexedDB.open(CONFIG.CACHE.DB, CONFIG.CACHE.VER);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(CONFIG.CACHE.STORE))
+          db.createObjectStore(CONFIG.CACHE.STORE, { keyPath: 'k' });
+      };
+      req.onsuccess = e => { this._db = e.target.result; ok(this._db); };
+      req.onerror   = e => fail(e.target.error);
+    });
+  },
+
+  async get(key) {
+    try {
+      const db  = await this._open();
+      const rec = await new Promise((ok, fail) => {
+        const tx  = db.transaction(CONFIG.CACHE.STORE, 'readonly');
+        const req = tx.objectStore(CONFIG.CACHE.STORE).get(key);
+        req.onsuccess = e => ok(e.target.result);
+        req.onerror   = e => fail(e.target.error);
+      });
+      if (!rec) return null;
+      if (Date.now() - rec.ts > rec.ttl) return null;   // expirado
+      return rec.v;
+    } catch { return null; }
+  },
+
+  async set(key, value, ttl) {
+    try {
+      const db = await this._open();
+      await new Promise((ok, fail) => {
+        const tx  = db.transaction(CONFIG.CACHE.STORE, 'readwrite');
+        const req = tx.objectStore(CONFIG.CACHE.STORE).put({ k: key, v: value, ts: Date.now(), ttl });
+        req.onsuccess = () => ok();
+        req.onerror   = e => fail(e.target.error);
+      });
+    } catch (e) { console.warn('Cache.set error:', e); }
+  },
+};
+
+
+// ════════════════════════════════════════════════════════════════
+// ██ GEOCODER  (Nominatim)
+// ════════════════════════════════════════════════════════════════
+const Geocoder = {
+  async geocode(address) {
+    const url = CONFIG.APIS.NOMINATIM + '?' + new URLSearchParams({
+      q: `${address}, Tartu, Estonia`,
+      format: 'json',
+      limit: '1',
+      addressdetails: '1',
+    });
+    const resp = await fetch(url, {
+      headers: { 'Accept-Language': 'es,en', 'User-Agent': 'TartuWalker/1.0' }
+    });
+    if (!resp.ok) throw new Error(`Nominatim HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (!data.length) throw new Error(`Dirección no encontrada: "${address}"`);
+    const r = data[0];
+    return { lat: parseFloat(r.lat), lon: parseFloat(r.lon), display: r.display_name };
+  },
+};
+
+
+// ════════════════════════════════════════════════════════════════
+// ██ OVERPASS API
+// ════════════════════════════════════════════════════════════════
+const Overpass = {
+  async _post(query) {
+    const resp = await fetch(CONFIG.APIS.OVERPASS, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body:    'data=' + encodeURIComponent(query),
+    });
+    if (!resp.ok) throw new Error(`Overpass HTTP ${resp.status}`);
+    return resp.json();
+  },
+
+  // Grafo simplificado de toda la ciudad (startup, cacheado 24h)
+  async fetchSimplified() {
+    const b = CONFIG.TARTU_BBOX;
+    return this._post(`
+[out:json][timeout:180][bbox:${b.S},${b.W},${b.N},${b.E}];
+(
+  way["highway"~"^(pedestrian|footway|path|living_street|residential|cycleway|steps|unclassified|tertiary|secondary|primary)$"];
+  way["foot"~"^(yes|designated)$"];
+);
+(._;>;);
+out body;`);
+  },
+
+  // Grafo detallado para un bbox concreto (por ruta, cacheado 6h)
+  async fetchDetailed(bbox) {
+    const b = Utils.bboxStr(bbox);
+    return this._post(`
+[out:json][timeout:90];
+(
+  way["highway"~"^(pedestrian|footway|path|living_street|residential|service|cycleway|steps|track|unclassified|tertiary|secondary|primary)$"](${b});
+  way["foot"~"^(yes|designated)$"](${b});
+);
+(._;>;);
+out body;`);
+  },
+
+  // POIs a lo largo de la ruta
+  async fetchPOIs(bbox) {
+    const b = Utils.bboxStr(bbox);
+    const lim = CONFIG.POI.MAX_RESULTS;
+    return this._post(`
+[out:json][timeout:30];
+(
+  node["amenity"~"^(drinking_water|bench|toilets|fountain|cafe|restaurant|pharmacy|bicycle_parking|atm)$"](${b});
+  node["historic"~"^(monument|memorial|statue|ruins|castle)$"](${b});
+  node["tourism"~"^(viewpoint|artwork|museum|attraction|information)$"](${b});
+  node["leisure"~"^(pitch|playground|fitness_station)$"](${b});
+  way["leisure"~"^(park|garden|nature_reserve)$"](${b});
+);
+out center ${lim};`);
+  },
+};
+
+
+// ════════════════════════════════════════════════════════════════
+// ██ GRAPH BUILDER
+// ════════════════════════════════════════════════════════════════
+const GraphBuilder = {
+  // Calcula multiplicador de coste (sistema aditivo con bonificaciones)
+  _mult(tags) {
+    const hw  = tags.highway  || '';
+    const ft  = tags.foot     || '';
+    const srf = tags.surface  || '';
+    const lit = tags.lit      || '';
+    const lei = tags.leisure  || '';
+    const lnd = tags.landuse  || '';
+    const P = CONFIG.COST.PENALTIES;
+    const B = CONFIG.COST.BONUSES;
+    let d = 0;
+
+    // ── Penalizaciones ───────────────────────────────────────
+    if (/^(primary|secondary|trunk|motorway)$/.test(hw))       d += P.main_road;
+    if (/^tertiary$/.test(hw) && !tags.sidewalk)               d += P.fast_tertiary;
+    if (!/^(footway|path|pedestrian|living_street|steps|cycleway)$/.test(hw)
+        && !/^(yes|designated)$/.test(ft))                     d += P.non_pedestrian;
+    if (srf && !/^(paved|asphalt|concrete|paving_stones|compacted|cobblestone)$/.test(srf))
+                                                               d += P.bad_surface;
+    if (lit === 'no')                                          d += P.no_lighting;
+
+    // ── Bonificaciones ───────────────────────────────────────
+    if (/^(footway|path|pedestrian)$/.test(hw))                d += B.footway_path;
+    if (hw === 'living_street')                                d += B.living_street;
+    if (/^(park|garden|nature_reserve|forest|grass|meadow|recreation_ground)$/.test(lei)
+        || /^(park|forest|grass|meadow|recreation_ground|village_green)$/.test(lnd))
+                                                               d += B.green_area;
+    if (/^(paved|asphalt|concrete|paving_stones)$/.test(srf)) d += B.good_surface;
+    if (lit === 'yes')                                         d += B.lit;
+
+    return Math.max(CONFIG.COST.MIN_MULT, 1.0 + d);
+  },
+
+  // Construye {nodes, edges} desde datos OSM crudos
+  build(osmData) {
+    const nodes = {};   // id → {lat, lon}
+    const edges = {};   // id → [{to, cost, dist}]   (bidireccional)
+
+    // Paso 1: indexar nodos
+    for (const el of osmData.elements) {
+      if (el.type === 'node') nodes[el.id] = { lat: el.lat, lon: el.lon };
+    }
+
+    // Paso 2: construir aristas desde ways
+    for (const el of osmData.elements) {
+      if (el.type !== 'way') continue;
+      const tags = el.tags || {};
+      const nids = el.nodes;
+      const mult = this._mult(tags);
+
+      for (let i = 0; i < nids.length - 1; i++) {
+        const [aId, bId] = [nids[i], nids[i+1]];
+        const [a, b]     = [nodes[aId], nodes[bId]];
+        if (!a || !b) continue;
+
+        const dist = Utils.haversine(a.lat, a.lon, b.lat, b.lon);
+        const cost = dist * mult;
+
+        if (!edges[aId]) edges[aId] = [];
+        if (!edges[bId]) edges[bId] = [];
+        edges[aId].push({ to: bId, cost, dist });
+        edges[bId].push({ to: aId, cost, dist });
+      }
+    }
+
+    return { nodes, edges };
+  },
+};
+
+
+// ════════════════════════════════════════════════════════════════
+// ██ MIN-HEAP  (cola de prioridad binaria)
+// ════════════════════════════════════════════════════════════════
+class MinHeap {
+  constructor() { this._h = []; }
+  get size()  { return this._h.length; }
+  isEmpty()   { return this._h.length === 0; }
+
+  push(item) { this._h.push(item); this._up(this._h.length - 1); }
+
+  pop() {
+    if (this._h.length === 1) return this._h.pop();
+    const top = this._h[0];
+    this._h[0] = this._h.pop();
+    this._down(0);
+    return top;
+  }
+
+  _up(i) {
+    const h = this._h;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (h[i].f < h[p].f) { [h[i], h[p]] = [h[p], h[i]]; i = p; } else break;
+    }
+  }
+
+  _down(i) {
+    const h = this._h, n = h.length;
+    for (;;) {
+      let s = i, l = 2*i+1, r = 2*i+2;
+      if (l < n && h[l].f < h[s].f) s = l;
+      if (r < n && h[r].f < h[s].f) s = r;
+      if (s === i) break;
+      [h[i], h[s]] = [h[s], h[i]]; i = s;
+    }
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════════
+// ██ PATHFINDER  (Dijkstra inverso + A*)
+// ════════════════════════════════════════════════════════════════
+const Pathfinder = {
+
+  /**
+   * Dijkstra desde destino.
+   * Como el grafo peatonal es bidireccional, Dijkstra normal desde dest
+   * sobre las mismas aristas equivale al Dijkstra inverso.
+   * Resultado: h[nodeId] = coste ponderado óptimo(node → dest).
+   * Esta heurística es perfecta → A* solo expande nodos en el camino óptimo.
+   */
+  dijkstraFromDest(graph, destId) {
+    const dist = {};
+    const heap = new MinHeap();
+    dist[destId] = 0;
+    heap.push({ id: destId, f: 0 });
+
+    while (!heap.isEmpty()) {
+      const { id, f } = heap.pop();
+      if (f > (dist[id] ?? Infinity)) continue;          // entrada obsoleta
+
+      for (const e of (graph.edges[id] ?? [])) {
+        const nd = f + e.cost;
+        if (nd < (dist[e.to] ?? Infinity)) {
+          dist[e.to] = nd;
+          heap.push({ id: e.to, f: nd });
+        }
+      }
+    }
+    return dist;
+  },
+
+  /**
+   * A* con heurística perfecta h[n] pre-calculada.
+   * Devuelve array de nodeId o null si no hay camino.
+   */
+  aStar(graph, h, startId, destId) {
+    const g        = { [startId]: 0 };
+    const cameFrom = {};
+    const visited  = new Set();
+    const heap     = new MinHeap();
+
+    heap.push({ id: startId, f: h[startId] ?? Infinity });
+
+    while (!heap.isEmpty()) {
+      const { id } = heap.pop();
+      if (id === destId) return this._reconstruct(cameFrom, destId);
+      if (visited.has(id)) continue;
+      visited.add(id);
+
+      for (const e of (graph.edges[id] ?? [])) {
+        if (visited.has(e.to)) continue;
+        const ng = (g[id] ?? Infinity) + e.cost;
+        if (ng < (g[e.to] ?? Infinity)) {
+          g[e.to]        = ng;
+          cameFrom[e.to] = id;
+          heap.push({ id: e.to, f: ng + (h[e.to] ?? Infinity) });
+        }
+      }
+    }
+    return null;
+  },
+
+  _reconstruct(cf, cur) {
+    const path = [cur];
+    while (cf[cur] !== undefined) { cur = cf[cur]; path.unshift(cur); }
+    return path;
+  },
+
+  // Snapping de coordenada al nodo más cercano dentro del radio configurado
+  snapToNode(lat, lon, nodes) {
+    let nearId = null, minD = Infinity;
+    for (const [id, n] of Object.entries(nodes)) {
+      const d = Utils.haversine(lat, lon, n.lat, n.lon);
+      if (d < minD) { minD = d; nearId = id; }
+    }
+    if (minD > CONFIG.NODE_SNAP_RADIUS) {
+      throw new Error(
+        `Sin vía transiteable a ${CONFIG.NODE_SNAP_RADIUS} m de la dirección. ` +
+        `Prueba con una calle más concurrida.`
+      );
+    }
+    return nearId;
+  },
+
+  // Estadísticas de la ruta calculada
+  calcStats(path, graph) {
+    let dist = 0, friendlyDist = 0;
+    for (let i = 0; i < path.length - 1; i++) {
+      const e = (graph.edges[path[i]] ?? []).find(e => e.to === path[i+1]);
+      if (!e) continue;
+      dist += e.dist;
+      if (e.cost / e.dist < 1.15) friendlyDist += e.dist;   // penalización < 15%
+    }
+    return {
+      distM:      dist,
+      timeS:      dist / CONFIG.WALK_SPEED_MS,
+      qualityPct: dist > 0 ? (friendlyDist / dist) * 100 : 0,
+    };
+  },
+};
+
+
+// ════════════════════════════════════════════════════════════════
+// ██ POI FETCHER
+// ════════════════════════════════════════════════════════════════
+const POIFetcher = {
+  DEFS: [
+    { tag:'amenity', vals:['drinking_water'],      icon:'💧', lbl:'Agua potable',  col:'#58bfff' },
+    { tag:'amenity', vals:['fountain'],             icon:'⛲', lbl:'Fuente',        col:'#58bfff' },
+    { tag:'amenity', vals:['bench'],                icon:'🪑', lbl:'Banco',         col:'#8898AA' },
+    { tag:'amenity', vals:['toilets'],              icon:'🚻', lbl:'Aseos',         col:'#8898AA' },
+    { tag:'amenity', vals:['cafe','restaurant'],    icon:'☕', lbl:'Cafetería',     col:'#FBBF24' },
+    { tag:'amenity', vals:['pharmacy'],             icon:'💊', lbl:'Farmacia',      col:'#34D399' },
+    { tag:'historic',vals:['monument','memorial','statue','ruins'], icon:'🗿', lbl:'Monumento', col:'#BC8CFF' },
+    { tag:'tourism', vals:['viewpoint'],            icon:'🔭', lbl:'Mirador',       col:'#FFA657' },
+    { tag:'tourism', vals:['artwork'],              icon:'🎨', lbl:'Arte',          col:'#FFA657' },
+    { tag:'tourism', vals:['museum'],               icon:'🏛️', lbl:'Museo',         col:'#FFA657' },
+    { tag:'tourism', vals:['information'],          icon:'ℹ️', lbl:'Información',   col:'#FFA657' },
+    { tag:'leisure', vals:['pitch'],                icon:'⚽', lbl:'Campo deportivo',col:'#34D399' },
+    { tag:'leisure', vals:['playground'],           icon:'🛝', lbl:'Parque infantil',col:'#34D399' },
+    { tag:'leisure', vals:['fitness_station'],      icon:'🏋️', lbl:'Gym exterior',  col:'#34D399' },
+    { tag:'leisure', vals:['park','garden','nature_reserve'], icon:'🌳', lbl:'Zona verde', col:'#34D399' },
+  ],
+
+  classify(tags) {
+    for (const d of this.DEFS) {
+      if (tags[d.tag] && d.vals.includes(tags[d.tag])) return d;
+    }
+    return { icon:'📌', lbl:'Punto de interés', col:'#8898AA' };
+  },
+
+  async fetch(path, nodes) {
+    if (path.length < 2) return [];
+
+    // Bbox de ruta + buffer
+    const lats = path.map(id => nodes[id]?.lat).filter(Boolean);
+    const lons = path.map(id => nodes[id]?.lon).filter(Boolean);
+    const buf  = CONFIG.POI.BUFFER_DEG;
+    const bbox = {
+      S: Math.min(...lats) - buf, W: Math.min(...lons) - buf,
+      N: Math.max(...lats) + buf, E: Math.max(...lons) + buf,
+    };
+
+    const osmData = await Overpass.fetchPOIs(bbox);
+
+    const seen = new Set(), pois = [];
+
+    for (const el of osmData.elements) {
+      if (seen.has(el.id)) continue;
+      seen.add(el.id);
+
+      const lat = el.lat ?? el.center?.lat;
+      const lon = el.lon ?? el.center?.lon;
+      if (!lat || !lon) continue;
+
+      // Distancia mínima a la ruta (muestreo cada 2 nodos)
+      let minD = Infinity;
+      for (let i = 0; i < path.length; i += 2) {
+        const n = nodes[path[i]];
+        if (n) minD = Math.min(minD, Utils.haversine(lat, lon, n.lat, n.lon));
+      }
+      // Comprobar también el último nodo
+      const last = nodes[path.at(-1)];
+      if (last) minD = Math.min(minD, Utils.haversine(lat, lon, last.lat, last.lon));
+
+      const tags = el.tags || {};
+      const def  = this.classify(tags);
+      const name = tags.name || tags['name:en'] || def.lbl;
+
+      pois.push({ id: el.id, lat, lon, name, def, distToRoute: minD });
+    }
+
+    pois.sort((a,b) => a.distToRoute - b.distToRoute);
+    return pois.slice(0, CONFIG.POI.MAX_RESULTS);
+  },
+};
+
+
+// ════════════════════════════════════════════════════════════════
+// ██ MAP RENDERER  (Leaflet)
+// ════════════════════════════════════════════════════════════════
+const MapRenderer = {
+  map:        null,
+  routeLayer: null,
+  poiLayer:   null,
+
+  init() {
+    this.map = L.map('map', { zoomControl: false })
+      .setView(CONFIG.MAP.CENTER, CONFIG.MAP.ZOOM);
+
+    L.tileLayer(CONFIG.MAP.TILE, { attribution: CONFIG.MAP.ATTR, maxZoom: 19 })
+      .addTo(this.map);
+
+    L.control.zoom({ position: 'bottomright' }).addTo(this.map);
+
+    this.routeLayer = L.layerGroup().addTo(this.map);
+    this.poiLayer   = L.layerGroup().addTo(this.map);
+  },
+
+  _divIcon(emoji, color, size = 34) {
+    return L.divIcon({
+      html: `<div style="width:${size}px;height:${size}px;background:${color};border:2.5px solid rgba(255,255,255,.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*.42)}px;box-shadow:0 3px 14px rgba(0,0,0,.45)">${emoji}</div>`,
+      className: '',
+      iconSize:    [size, size],
+      iconAnchor:  [size/2, size/2],
+      popupAnchor: [0, -size/2 - 4],
+    });
+  },
+
+  clear() {
+    this.routeLayer.clearLayers();
+    this.poiLayer.clearLayers();
+  },
+
+  drawRoute(path, nodes) {
+    this.routeLayer.clearLayers();
+
+    const coords = path.map(id => [nodes[id].lat, nodes[id].lon]);
+
+    // Sombra exterior
+    L.polyline(coords, { color:'#000', weight:9, opacity:.2, lineJoin:'round', lineCap:'round' })
+      .addTo(this.routeLayer);
+
+    // Línea principal (verde-teal)
+    L.polyline(coords, { color:'#2DD4BF', weight:5, opacity:.95, lineJoin:'round', lineCap:'round' })
+      .addTo(this.routeLayer);
+
+    // Marcadores inicio / fin
+    L.marker(coords[0],              { icon: this._divIcon('🚶', '#1A9C8E', 40) })
+      .bindPopup('<b>Inicio</b>')
+      .addTo(this.routeLayer);
+
+    L.marker(coords[coords.length-1], { icon: this._divIcon('🏁', '#D9534F', 40) })
+      .bindPopup('<b>Destino</b>')
+      .addTo(this.routeLayer);
+
+    this.map.fitBounds(L.latLngBounds(coords), { padding: [60, 60] });
+  },
+
+  drawPOIs(pois) {
+    this.poiLayer.clearLayers();
+    for (const poi of pois) {
+      const icon = this._divIcon(poi.def.icon, poi.def.col, 28);
+      L.marker([poi.lat, poi.lon], { icon })
+        .bindPopup(`<b>${poi.name}</b><br><small>${poi.def.lbl} · ${Utils.fmtDist(poi.distToRoute)} de la ruta</small>`)
+        .addTo(this.poiLayer);
+    }
+  },
+
+  flyTo(lat, lon, zoom = 17) {
+    this.map.flyTo([lat, lon], zoom, { duration: 0.8 });
+  },
+};
+
+
+// ════════════════════════════════════════════════════════════════
+// ██ UI HELPERS
+// ════════════════════════════════════════════════════════════════
+const UI = {
+  _toastT: null,
+
+  overlay(show, msg = '', step = '', pct = 0) {
+    const el = document.getElementById('overlay');
+    document.getElementById('overlayMsg').textContent  = msg;
+    document.getElementById('overlayStep').textContent = step;
+    document.getElementById('progressFill').style.width = `${pct}%`;
+    el.classList.toggle('visible', show);
+  },
+
+  progress(msg, step, pct) {
+    document.getElementById('overlayMsg').textContent  = msg;
+    document.getElementById('overlayStep').textContent = step;
+    document.getElementById('progressFill').style.width = `${pct}%`;
+  },
+
+  toast(msg, type = 'info', ms = 4500) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className   = `toast show ${type}`;
+    clearTimeout(this._toastT);
+    this._toastT = setTimeout(() => { el.className = 'toast'; }, ms);
+  },
+
+  setCacheStatus(state, msg) {
+    document.getElementById('cacheIndicator').className = `cache-indicator ${state}`;
+    document.getElementById('cacheText').textContent    = msg;
+  },
+
+  setBadge(id, lat, lon) {
+    const el = document.getElementById(id);
+    el.textContent = Utils.fmtCoord(lat, lon);
+    el.classList.add('visible');
+  },
+
+  clearBadges() {
+    ['badgeA','badgeB'].forEach(id => {
+      const el = document.getElementById(id);
+      el.textContent = '';
+      el.classList.remove('visible');
+    });
+  },
+
+  renderStats(stats) {
+    document.getElementById('routeInfo').classList.remove('hidden');
+    document.getElementById('statsGrid').innerHTML = `
+      <div class="stat-card">
+        <div class="stat-num">${Utils.fmtDist(stats.distM)}</div>
+        <div class="stat-lbl">Distancia total</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">${Utils.fmtTime(stats.timeS)}</div>
+        <div class="stat-lbl">Tiempo estimado</div>
+      </div>
+    `;
+    const q = Math.round(stats.qualityPct);
+    document.getElementById('qualityPct').textContent     = `${q}%`;
+    document.getElementById('qualityFill').style.width   = `${q}%`;
+  },
+
+  renderPOIs(pois) {
+    const sec   = document.getElementById('poiSection');
+    const list  = document.getElementById('poiList');
+    const count = document.getElementById('poiCount');
+    if (!pois.length) { sec.classList.add('hidden'); return; }
+    sec.classList.remove('hidden');
+    count.textContent = pois.length;
+    list.innerHTML = pois.map(p => `
+      <div class="poi-item" onclick="MapRenderer.flyTo(${p.lat},${p.lon})">
+        <span class="poi-icon">${p.def.icon}</span>
+        <span class="poi-name">${p.name}</span>
+        <span class="poi-dist">${Utils.fmtDist(p.distToRoute)}</span>
+      </div>
+    `).join('');
+  },
+
+  resetResults() {
+    document.getElementById('routeInfo').classList.add('hidden');
+    document.getElementById('poiSection').classList.add('hidden');
+    this.clearBadges();
+  },
+};
+
+
+// ════════════════════════════════════════════════════════════════
+// ██ APP CONTROLLER
+// ════════════════════════════════════════════════════════════════
+const App = {
+
+  async init() {
+    MapRenderer.init();
+    this._preloadGraph();
+  },
+
+  // Precarga grafo simplificado en background (estrategia híbrida)
+  async _preloadGraph() {
+    UI.setCacheStatus('loading', 'Descargando grafo de Tartu…');
+    try {
+      let data = await Cache.get('simplified_tartu');
+      if (!data) {
+        data = await Overpass.fetchSimplified();
+        await Cache.set('simplified_tartu', data, CONFIG.CACHE.TTL_SIMPLE_MS);
+      }
+      const g = GraphBuilder.build(data);
+      const n = Object.keys(g.nodes).length.toLocaleString('es');
+      UI.setCacheStatus('ready', `Grafo listo · ${n} nodos`);
+    } catch (e) {
+      console.warn('Preload falló:', e);
+      UI.setCacheStatus('error', 'Carga bajo demanda activa');
+    }
+  },
+
+  async calculateRoute() {
+    const addrA = document.getElementById('inputA').value.trim();
+    const addrB = document.getElementById('inputB').value.trim();
+
+    if (!addrA || !addrB) {
+      UI.toast('Introduce origen y destino para calcular.', 'error'); return;
+    }
+
+    document.getElementById('btnCalc').disabled = true;
+    MapRenderer.clear();
+    UI.resetResults();
+
+    try {
+      // ── 1. Geocodificación ──────────────────────────────────
+      UI.overlay(true, 'Geocodificando direcciones…', '01 / 06', 10);
+      const [locA, locB] = await Promise.all([
+        Geocoder.geocode(addrA),
+        Geocoder.geocode(addrB),
+      ]);
+      UI.setBadge('badgeA', locA.lat, locA.lon);
+      UI.setBadge('badgeB', locB.lat, locB.lon);
+
+      // ── 2. Descarga grafo detallado ─────────────────────────
+      UI.progress('Descargando grafo detallado del área…', '02 / 06', 25);
+      const bbox = Utils.buildBbox(locA.lat, locA.lon, locB.lat, locB.lon);
+      const ck   = `detail_${[bbox.S,bbox.W,bbox.N,bbox.E].map(v=>v.toFixed(3)).join('_')}`;
+      let osmData = await Cache.get(ck);
+      if (!osmData) {
+        osmData = await Overpass.fetchDetailed(bbox);
+        await Cache.set(ck, osmData, CONFIG.CACHE.TTL_DETAIL_MS);
+      }
+
+      // ── 3. Grafo ponderado ──────────────────────────────────
+      UI.progress('Construyendo grafo ponderado…', '03 / 06', 45);
+      const graph = GraphBuilder.build(osmData);
+
+      if (!Object.keys(graph.nodes).length) {
+        throw new Error('El área no contiene vías transitables. Amplía el radio de búsqueda.');
+      }
+
+      // ── 4. Node snapping ────────────────────────────────────
+      UI.progress('Mapeando direcciones al grafo…', '04 / 06', 55);
+      const startId = Pathfinder.snapToNode(locA.lat, locA.lon, graph.nodes);
+      const destId  = Pathfinder.snapToNode(locB.lat, locB.lon, graph.nodes);
+
+      // ── 5. Dijkstra inverso desde destino ───────────────────
+      UI.progress('Calculando heurística (Dijkstra inverso)…', '05 / 06', 68);
+      const h = Pathfinder.dijkstraFromDest(graph, destId);
+
+      if ((h[startId] ?? Infinity) === Infinity) {
+        throw new Error('El grafo está desconectado entre los puntos elegidos. Intenta con direcciones más conectadas.');
+      }
+
+      // ── 6. A* ───────────────────────────────────────────────
+      UI.progress('Ejecutando A*…', '06 / 06', 82);
+      const path = Pathfinder.aStar(graph, h, startId, destId);
+      if (!path) throw new Error('A* no encontró ruta. Prueba con otras direcciones.');
+
+      const stats = Pathfinder.calcStats(path, graph);
+
+      // ── Renderizado ─────────────────────────────────────────
+      UI.progress('Renderizando ruta y POIs…', '06 / 06', 92);
+      MapRenderer.drawRoute(path, graph.nodes);
+      UI.renderStats(stats);
+
+      // POIs (puede fallar sin romper el flujo principal)
+      try {
+        const pois = await POIFetcher.fetch(path, graph.nodes);
+        MapRenderer.drawPOIs(pois);
+        UI.renderPOIs(pois);
+      } catch (e) { console.warn('POIs no disponibles:', e); }
+
+      UI.overlay(false);
+      UI.toast(
+        `Ruta lista · ${Utils.fmtDist(stats.distM)} · ${Utils.fmtTime(stats.timeS)}`,
+        'success'
+      );
+
+    } catch (e) {
+      UI.overlay(false);
+      UI.toast(e.message || 'Error desconocido.', 'error', 7000);
+      console.error(e);
+    } finally {
+      document.getElementById('btnCalc').disabled = false;
+    }
+  },
+
+  clearRoute() {
+    MapRenderer.clear();
+    UI.resetResults();
+    document.getElementById('inputA').value = '';
+    document.getElementById('inputB').value = '';
+    MapRenderer.map.setView(CONFIG.MAP.CENTER, CONFIG.MAP.ZOOM);
+  },
+};
+
+
+// ── Arranque ─────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => App.init());
+</script>
+</body>
+</html>
