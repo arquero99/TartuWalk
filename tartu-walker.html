@@ -642,9 +642,6 @@ body {
         </div>
       </div>
 
-      <!-- Snap info -->
-      <div id="snapInfoPanel" class="hidden" style="padding: 0 20px 18px;"></div>
-
       <!-- POIs -->
       <div id="poiSection" class="poi-section hidden">
         <div class="divider" style="margin:0 0 18px; margin-left:-20px; margin-right:-20px;"></div>
@@ -723,6 +720,9 @@ const CONFIG = {
     VER: 1,
     STORE: 'g',
   },
+
+  OVERPASS_RETRIES:         3,      // reintentos ante error 5xx
+  OVERPASS_RETRY_DELAY_MS:  1000,   // espera base (se dobla en cada reintento)
 
   // ── Sistema de costes aditivo ─────────────────────────────
   // coste_final = distancia × max(MIN_MULT, 1.0 + Σ deltas)
@@ -1362,8 +1362,6 @@ const MapRenderer = {
         { color: '#FBBF24', weight: 2, opacity: 0.6, dashArray: '4, 4', lineJoin: 'round' }
       ).addTo(this.routeLayer);
 
-      // Mostrar panel de info de snapping
-      MapRenderer._showSnapInfo(snapInfo);
     } else {
       // Fallback si no hay snapInfo (para compatibilidad)
       L.marker(coords[0],              { icon: this._divIcon('🚶', '#1A9C8E', 80) })
@@ -1376,52 +1374,6 @@ const MapRenderer = {
     }
 
     this.map.fitBounds(L.latLngBounds(coords), { padding: [60, 60] });
-  },
-
-  /**
-   * Muestra panel informativo del snapping
-   */
-  _showSnapInfo(snapInfo) {
-    const distStart = Utils.haversine(
-      snapInfo.locA.lat, snapInfo.locA.lon,
-      snapInfo.startNode.lat, snapInfo.startNode.lon
-    );
-    const distEnd = Utils.haversine(
-      snapInfo.locB.lat, snapInfo.locB.lon,
-      snapInfo.destNode.lat, snapInfo.destNode.lon
-    );
-
-    const html = `
-      <div style="padding:12px; background:linear-gradient(135deg, #131820, #1A2030); 
-        color:#DCE4F0; border-radius:8px; border: 1px solid #2E3A50; 
-        font-family: monospace; font-size:10px; line-height:1.5;">
-        <h3 style="margin:0 0 8px 0; color:#2DD4BF; font-size:11px;">🎯 NODE SNAPPING</h3>
-        
-        <div style="margin-bottom:8px; padding-bottom:8px; border-bottom: 1px solid #252E40;">
-          <div style="color:#34D399; margin-bottom:2px;">📍 INICIO</div>
-          <div>Geocoded: ${Utils.fmtCoord(snapInfo.locA.lat, snapInfo.locA.lon)}</div>
-          <div>Snapped: Node ${snapInfo.startId}</div>
-          <div style="color:#FBBF24; margin-top:2px;">Desviación: <strong>${Math.round(distStart)}m</strong></div>
-        </div>
-
-        <div style="margin-bottom:8px; padding-bottom:8px; border-bottom: 1px solid #252E40;">
-          <div style="color:#34D399; margin-bottom:2px;">📍 DESTINO</div>
-          <div>Geocoded: ${Utils.fmtCoord(snapInfo.locB.lat, snapInfo.locB.lon)}</div>
-          <div>Snapped: Node ${snapInfo.destId}</div>
-          <div style="color:#FBBF24; margin-top:2px;">Desviación: <strong>${Math.round(distEnd)}m</strong></div>
-        </div>
-
-        <div style="font-size:9px; color:#8898AA;">
-          💡 Las líneas <span style="color:#FBBF24;">naranjas punteadas</span> muestran la desviación
-        </div>
-      </div>
-    `;
-
-    const panel = document.getElementById('snapInfoPanel');
-    if (panel) {
-      panel.innerHTML = html;
-      panel.classList.remove('hidden');
-    }
   },
 
   drawPOIs(pois) {
@@ -1522,7 +1474,6 @@ const UI = {
 
   resetResults() {
     document.getElementById('routeInfo').classList.add('hidden');
-    document.getElementById('snapInfoPanel').classList.add('hidden');
     document.getElementById('poiSection').classList.add('hidden');
     this.clearBadges();
   },
@@ -1662,6 +1613,7 @@ const App = {
       UI.progress('Renderizando ruta y POIs…', '06 / 06', 92);
       MapRenderer.drawRoute(path, graph.nodes, this.snapInfo);
       UI.renderStats(stats);
+      if (GraphDebug.enabled && GraphDebug.stats) GraphDebug._showStatsPanel(GraphDebug.stats);
 
       // POIs (puede fallar sin romper el flujo principal)
       try {
@@ -1944,7 +1896,35 @@ const GraphDebug = {
         </div>
       </div>
     `;
-    
+
+    // Snap info section (solo en debug, si hay ruta calculada)
+    const si = App.snapInfo;
+    if (si && si.startNode && si.destNode) {
+      const dA = Math.round(Utils.haversine(si.locA.lat, si.locA.lon, si.startNode.lat, si.startNode.lon));
+      const dB = Math.round(Utils.haversine(si.locB.lat, si.locB.lon, si.destNode.lat,  si.destNode.lon));
+      html += `
+      <div style="margin-top:10px; padding:10px 12px; background:linear-gradient(135deg,#131820,#1A2030);
+        color:#DCE4F0; border-radius:8px; border:1px solid #2E3A50;
+        font-family:monospace; font-size:10px; line-height:1.5;">
+        <h3 style="margin:0 0 8px 0; color:#2DD4BF; font-size:11px;">🎯 NODE SNAPPING</h3>
+        <div style="margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #252E40;">
+          <div style="color:#34D399;">📍 INICIO</div>
+          <div>Geocoded: ${Utils.fmtCoord(si.locA.lat, si.locA.lon)}</div>
+          <div>Snapped: Node ${si.startId}</div>
+          <div style="color:#FBBF24;">Desviación: <strong>${dA} m</strong></div>
+        </div>
+        <div style="margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #252E40;">
+          <div style="color:#34D399;">📍 DESTINO</div>
+          <div>Geocoded: ${Utils.fmtCoord(si.locB.lat, si.locB.lon)}</div>
+          <div>Snapped: Node ${si.destId}</div>
+          <div style="color:#FBBF24;">Desviación: <strong>${dB} m</strong></div>
+        </div>
+        <div style="font-size:9px; color:#8898AA;">
+          Las líneas <span style="color:#FBBF24;">naranjas punteadas</span> muestran la desviación
+        </div>
+      </div>`;
+    }
+
     const panel = document.getElementById('debugPanel');
     if (panel) {
       panel.innerHTML = html;
