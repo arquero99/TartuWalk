@@ -616,6 +616,11 @@ body {
         </div>
         <div class="poi-list" id="poiList"></div>
       </div>
+
+      <!-- Debug Panel -->
+      <div id="debugPanel" style="display:none; margin: 18px 20px 0; padding: 12px;">
+        <div style="font-size:11px; color:#8898AA;">Presiona D para activar debug del grafo</div>
+      </div>
     </div>
 
     <!-- Cache status footer -->
@@ -1363,6 +1368,7 @@ const App = {
         await Cache.set('simplified_tartu', data, CONFIG.CACHE.TTL_SIMPLE_MS);
       }
       const g = GraphBuilder.build(data);
+      this.graph = g;  // Guardar para debug
       const n = Object.keys(g.nodes).length.toLocaleString('es');
       UI.setCacheStatus('ready', `Grafo listo · ${n} nodos`);
     } catch (e) {
@@ -1424,6 +1430,9 @@ const App = {
         throw new Error('El grafo está desconectado entre los puntos elegidos. Intenta con direcciones más conectadas.');
       }
 
+      // ── Guardar grafo para debug ────────────────────────────
+      this.graph = graph;
+
       // ── 6. A* ───────────────────────────────────────────────
       UI.progress('Ejecutando A*…', '06 / 06', 82);
       const path = Pathfinder.aStar(graph, h, startId, destId);
@@ -1468,8 +1477,298 @@ const App = {
 };
 
 
+// ════════════════════════════════════════════════════════════════
+// ██ DEBUG MODE - Visualización del Grafo
+// ════════════════════════════════════════════════════════════════
+
+const GraphDebug = {
+  enabled: false,
+  graphLayer: null,
+  selectedNode: null,
+  stats: null,
+
+  /**
+   * Análisis de conectividad: detecta componentes desconectados
+   */
+  analyzeConnectivity(graph) {
+    const visited = new Set();
+    const components = [];
+
+    const dfs = (nodeId, component) => {
+      if (visited.has(nodeId)) return;
+      visited.add(nodeId);
+      component.add(nodeId);
+      
+      for (const edge of (graph.edges[nodeId] ?? [])) {
+        dfs(edge.to, component);
+      }
+    };
+
+    for (const nodeId of Object.keys(graph.nodes)) {
+      if (!visited.has(nodeId)) {
+        const component = new Set();
+        dfs(nodeId, component);
+        components.push(component);
+      }
+    }
+
+    return components;
+  },
+
+  /**
+   * Calcula estadísticas del grafo
+   */
+  computeStats(graph) {
+    const components = this.analyzeConnectivity(graph);
+    const numNodes = Object.keys(graph.nodes).length;
+    const numEdges = Object.values(graph.edges).reduce((sum, edges) => sum + edges.length, 0) / 2;
+    
+    // Densidade promedio
+    const avgDegree = numNodes > 0 ? (Object.values(graph.edges).reduce((sum, edges) => sum + edges.length, 0) / numNodes).toFixed(2) : 0;
+    
+    return {
+      numNodes,
+      numEdges: Math.round(numEdges),
+      numComponents: components.length,
+      largestComponent: Math.max(...components.map(c => c.size), 0),
+      avgDegree,
+      components,
+    };
+  },
+
+  /**
+   * Dibuja el grafo en la capa de mapa
+   */
+  drawGraph(graph) {
+    if (this.graphLayer) MapRenderer.map.removeLayer(this.graphLayer);
+
+    const fg = L.featureGroup();
+    const stats = this.computeStats(graph);
+    this.stats = stats;
+
+    // Color por componente conectado
+    const componentColor = {};
+    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'];
+    
+    stats.components.forEach((comp, idx) => {
+      comp.forEach(nodeId => {
+        componentColor[nodeId] = colors[idx % colors.length];
+      });
+    });
+
+    // Dibujar edges primero (para que estén debajo)
+    for (const [fromId, edges] of Object.entries(graph.edges)) {
+      for (const edge of edges) {
+        const from = graph.nodes[fromId];
+        const to = graph.nodes[edge.to];
+        
+        if (from && to) {
+          const polyline = L.polyline(
+            [[from.lat, from.lon], [to.lat, to.lon]],
+            {
+              color: componentColor[fromId] || '#999',
+              weight: 1,
+              opacity: 0.3,
+              dashArray: '2, 2',
+            }
+          ).addTo(fg);
+        }
+      }
+    }
+
+    // Dibujar nodos
+    for (const [nodeId, node] of Object.entries(graph.nodes)) {
+      const isLargeComponent = nodeId in componentColor && 
+        stats.components.some(c => c.has(nodeId) && c.size === stats.largestComponent);
+      
+      const marker = L.circleMarker([node.lat, node.lon], {
+        radius: isLargeComponent ? 5 : 3,
+        fillColor: componentColor[nodeId] || '#999',
+        color: 'rgba(0,0,0,0.3)',
+        weight: 1,
+        opacity: 1,
+        fillOpacity: 0.8,
+      })
+      .on('click', () => this.selectNode(graph, nodeId))
+      .addTo(fg);
+
+      // Popup con ID del nodo
+      marker.bindPopup(`Nodo ${nodeId}<br>Lat: ${node.lat.toFixed(5)}<br>Lon: ${node.lon.toFixed(5)}`, {
+        closeButton: false,
+        maxWidth: 200,
+      });
+    }
+
+    this.graphLayer = fg;
+    MapRenderer.map.addLayer(fg);
+    this._showStatsPanel(stats);
+  },
+
+  /**
+   * Selecciona un nodo y muestra sus conexiones
+   */
+  selectNode(graph, nodeId) {
+    this.selectedNode = nodeId;
+    const node = graph.nodes[nodeId];
+    const edges = graph.edges[nodeId] || [];
+    
+    let html = `
+      <div style="padding:10px; background:#131820; color:#DCE4F0; border-radius:8px; font-size:11px; font-family: monospace;">
+        <strong>Nodo ID:</strong> ${nodeId}<br/>
+        <strong>Coords:</strong> ${node.lat.toFixed(5)}° N, ${node.lon.toFixed(5)}° E<br/>
+        <strong>Conexiones:</strong> ${edges.length}<br/>
+        <hr style="border:none; border-top:1px solid #2E3A50; margin:6px 0;"/>
+    `;
+    
+    edges.forEach((e, i) => {
+      const targetNode = graph.nodes[e.to];
+      html += `
+        <div style="margin-top:4px;">
+          → Nodo ${e.to}<br/>
+          &nbsp;&nbsp;<span style="color:#2DD4BF;">dist:</span> ${Math.round(e.dist)}m | 
+          <span style="color:#34D399;">cost:</span> ${e.cost.toFixed(2)}<br/>
+          &nbsp;&nbsp;${targetNode ? `${targetNode.lat.toFixed(5)}°, ${targetNode.lon.toFixed(5)}°` : '(no existe)'}
+        </div>
+      `;
+    });
+    
+    html += '</div>';
+    
+    // Mostrar conexiones en rojo
+    if (this.graphLayer) MapRenderer.map.removeLayer(this.graphLayer);
+    const fg = L.featureGroup();
+    
+    // Dibujar solo este nodo y sus conexiones
+    const marker = L.circleMarker([node.lat, node.lon], {
+      radius: 8,
+      fillColor: '#F87171',
+      color: '#FFF',
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 1,
+    }).addTo(fg);
+    
+    // Líneas hacia las conexiones
+    edges.forEach(e => {
+      const target = graph.nodes[e.to];
+      if (target) {
+        L.polyline(
+          [[node.lat, node.lon], [target.lat, target.lon]],
+          { color: '#FBBF24', weight: 2, opacity: 1 }
+        ).addTo(fg);
+        
+        L.circleMarker([target.lat, target.lon], {
+          radius: 5,
+          fillColor: '#34D399',
+          color: '#000',
+          weight: 1,
+          opacity: 1,
+          fillOpacity: 0.7,
+        }).addTo(fg);
+      }
+    });
+    
+    this.graphLayer = fg;
+    MapRenderer.map.addLayer(fg);
+    
+    // Mostrar en panel
+    const panel = document.getElementById('debugPanel');
+    if (panel) {
+      panel.innerHTML = html;
+      panel.style.display = 'block';
+    }
+  },
+
+  /**
+   * Mostrar panel de estadísticas
+   */
+  _showStatsPanel(stats) {
+    let html = `
+      <div style="padding:12px; background:linear-gradient(135deg, #131820, #1A2030); 
+        color:#DCE4F0; border-radius:8px; border: 1px solid #2E3A50; 
+        font-family: monospace; font-size:11px; line-height:1.6;">
+        <h3 style="margin:0 0 10px 0; color:#2DD4BF; font-size:12px;">📊 ESTADÍSTICAS DEL GRAFO</h3>
+        <table style="width:100%; border-collapse:collapse;">
+          <tr style="border-bottom: 1px solid #252E40;">
+            <td style="padding:4px 6px;"><strong>Nodos:</strong></td>
+            <td style="padding:4px 6px; color:#34D399;">${stats.numNodes}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #252E40;">
+            <td style="padding:4px 6px;"><strong>Edges:</strong></td>
+            <td style="padding:4px 6px; color:#34D399;">${stats.numEdges}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #252E40;">
+            <td style="padding:4px 6px;"><strong>Avg Degree:</strong></td>
+            <td style="padding:4px 6px; color:#34D399;">${stats.avgDegree}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #252E40;">
+            <td style="padding:4px 6px;"><strong>Componentes:</strong></td>
+            <td style="padding:4px 6px; color:${stats.numComponents === 1 ? '#34D399' : '#F87171'};"><strong>${stats.numComponents}</strong></td>
+          </tr>
+          <tr>
+            <td style="padding:4px 6px;"><strong>Princ. Comp:</strong></td>
+            <td style="padding:4px 6px; color:#FBBF24;">${stats.largestComponent} nodos</td>
+          </tr>
+        </table>
+        ${stats.numComponents > 1 ? `
+        <div style="margin-top:10px; padding:8px; background:rgba(248,113,113,.1); 
+          border-left: 3px solid #F87171; color:#F87171;">
+          ⚠️  <strong>ALERTA:</strong> Grafo fragmentado en ${stats.numComponents} componentes.<br/>
+          Algunos nodos NO conectan con otros.
+        </div>
+        ` : ''}
+        <div style="margin-top:8px; font-size:10px; color:#8898AA;">
+          💡 Click en nodos para ver detalles
+        </div>
+      </div>
+    `;
+    
+    const panel = document.getElementById('debugPanel');
+    if (panel) {
+      panel.innerHTML = html;
+      panel.style.display = 'block';
+    }
+  },
+
+  /**
+   * Toggle del modo debug
+   */
+  toggle(graph) {
+    if (!graph || !graph.nodes || !graph.edges) {
+      UI.toast('Grafo no disponible. Carga una ruta primero.', 'error');
+      return;
+    }
+
+    this.enabled = !this.enabled;
+
+    if (this.enabled) {
+      UI.toast('🐛 DEBUG MODE ACTIVADO - Presiona D para desactivar', 'info', 3000);
+      this.drawGraph(graph);
+    } else {
+      if (this.graphLayer) {
+        MapRenderer.map.removeLayer(this.graphLayer);
+        this.graphLayer = null;
+      }
+      const panel = document.getElementById('debugPanel');
+      if (panel) panel.style.display = 'none';
+      UI.toast('DEBUG MODE desactivado', 'info', 2000);
+    }
+  },
+};
+
+
 // ── Arranque ─────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => App.init());
+document.addEventListener('DOMContentLoaded', () => {
+  App.init();
+  
+  // Tecla D para activar debug
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'd' || e.key === 'D') {
+      if (App.graph) GraphDebug.toggle(App.graph);
+    }
+  });
+});
+
 </script>
 </body>
 </html>
