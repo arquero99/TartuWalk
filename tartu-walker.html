@@ -232,6 +232,79 @@ body {
 .geocoded-badge.visible { opacity: 1; transform: translateY(0); }
 
 /* ── Buttons ─────────────────────────────────────────── */
+.pref-slider-section {
+  padding: 12px 20px 4px;
+}
+
+.pref-slider-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted2);
+  margin-bottom: 10px;
+}
+
+.pref-slider-header svg { flex-shrink: 0; }
+
+.pref-slider-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9.5px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  letter-spacing: .3px;
+}
+
+.pref-slider-labels span:last-child { color: var(--teal); opacity: .8; }
+
+input[type=range].pref-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(
+    to right,
+    var(--teal) 0%,
+    var(--teal) calc(var(--pref-pct, 100%) * 1%),
+    var(--border2) calc(var(--pref-pct, 100%) * 1%),
+    var(--border2) 100%
+  );
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type=range].pref-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--teal);
+  border: 2px solid var(--panel);
+  box-shadow: 0 0 0 1px var(--teal);
+  cursor: pointer;
+  transition: box-shadow .15s;
+}
+
+input[type=range].pref-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--teal);
+  border: 2px solid var(--panel);
+  box-shadow: 0 0 0 1px var(--teal);
+  cursor: pointer;
+}
+
+input[type=range].pref-slider:hover::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgba(45,212,191,.2);
+}
+
 .btn-row {
   display: flex;
   gap: 8px;
@@ -654,6 +727,24 @@ body {
         </div>
       </div>
 
+      <div class="pref-slider-section">
+        <div class="pref-slider-header">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"/><line x1="3" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="21" y2="12"/>
+            <line x1="12" y1="3" x2="12" y2="9"/><line x1="12" y1="15" x2="12" y2="21"/>
+          </svg>
+          Preferencia peatonal
+        </div>
+        <div class="pref-slider-labels">
+          <span>Ruta más corta</span>
+          <span>Máx. peatonal</span>
+        </div>
+        <input type="range" class="pref-slider" id="prefSlider"
+          min="0" max="100" value="100"
+          style="--pref-pct:100"
+          oninput="App.onPrefSlider(this.value)" />
+      </div>
+
       <div class="btn-row">
         <button class="btn-calc" id="btnCalc" onclick="App.calculateRoute()">
           <span>Calcular Ruta</span>
@@ -771,20 +862,25 @@ const CONFIG = {
 
     // Penalizaciones (delta > 0 → más caro → A* lo evita)
     PENALTIES: {
-      main_road:        0.80,   // highway = primary|secondary|trunk
+      main_road:        0.80,   // highway = primary|secondary|trunk  (escalado por slider)
       fast_tertiary:    0.40,   // tertiary sin sidewalk documentado
       non_pedestrian:   0.50,   // sin designación foot-friendly
-      bad_surface:      0.30,   // superficie no pavimentada
       no_lighting:      0.15,   // lit = no
     },
 
     // Bonificaciones (delta < 0 → más barato → A* lo prefiere)
     BONUSES: {
-      footway_path:    -0.20,   // highway = footway|path|pedestrian
+      footway_path:    -0.20,   // highway = footway|path|pedestrian  (escalado por slider)
       living_street:   -0.15,   // highway = living_street
       green_area:      -0.10,   // leisure/landuse = parque/bosque
-      good_surface:    -0.05,   // surface = paved|asphalt|concrete…
+      good_surface:    -0.05,   // surface = paved|paving_stones
       lit:             -0.05,   // lit = yes
+    },
+
+    // Valores máximos para el slider de preferencia peatonal
+    SLIDER_MAX: {
+      main_road:    0.80,
+      footway_path: 0.20,
     },
   },
 
@@ -1012,8 +1108,6 @@ const GraphBuilder = {
     if (/^tertiary$/.test(hw) && !tags.sidewalk)               d += P.fast_tertiary;
     if (!/^(footway|path|pedestrian|living_street|steps|cycleway)$/.test(hw)
         && !/^(yes|designated)$/.test(ft))                     d += P.non_pedestrian;
-    if (srf && !/^(paved|asphalt|concrete|paving_stones|compacted|cobblestone)$/.test(srf))
-                                                               d += P.bad_surface;
     if (lit === 'no')                                          d += P.no_lighting;
 
     // ── Bonificaciones ───────────────────────────────────────
@@ -1022,7 +1116,7 @@ const GraphBuilder = {
     if (/^(park|garden|nature_reserve|forest|grass|meadow|recreation_ground)$/.test(lei)
         || /^(park|forest|grass|meadow|recreation_ground|village_green)$/.test(lnd))
                                                                d += B.green_area;
-    if (/^(paved|asphalt|concrete|paving_stones)$/.test(srf)) d += B.good_surface;
+    if (/^(paved|paving_stones)$/.test(srf))                   d += B.good_surface;
     if (lit === 'yes')                                         d += B.lit;
 
     return Math.max(CONFIG.COST.MIN_MULT, 1.0 + d);
@@ -1760,6 +1854,13 @@ const App = {
     } finally {
       document.getElementById('btnCalc').disabled = false;
     }
+  },
+
+  onPrefSlider(value) {
+    const t = value / 100;
+    CONFIG.COST.PENALTIES.main_road  = t * CONFIG.COST.SLIDER_MAX.main_road;
+    CONFIG.COST.BONUSES.footway_path = -(t * CONFIG.COST.SLIDER_MAX.footway_path);
+    document.getElementById('prefSlider').style.setProperty('--pref-pct', value);
   },
 
   clearRoute() {
