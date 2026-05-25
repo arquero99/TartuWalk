@@ -706,9 +706,14 @@ const CONFIG = {
   },
 
   APIS: {
-    OVERPASS:  'https://overpass-api.de/api/interpreter',
-    NOMINATIM: 'https://nominatim.openstreetmap.org/search',
+    OVERPASS:  '/api/overpass',
+    NOMINATIM: '/api/geocode',
   },
+
+  // URL del backend (localhost en desarrollo, mismo origen en producción)
+  BACKEND_URL: typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+    ? 'http://localhost:3001' 
+    : window.location.origin,
 
   WALK_SPEED_MS: 1.389,   // 5 km/h
 };
@@ -806,16 +811,13 @@ const Cache = {
 // ════════════════════════════════════════════════════════════════
 const Geocoder = {
   async geocode(address) {
-    const url = CONFIG.APIS.NOMINATIM + '?' + new URLSearchParams({
+    const query = new URLSearchParams({
       q: `${address}, Tartu, Estonia`,
-      format: 'json',
       limit: '1',
-      addressdetails: '1',
     });
-    const resp = await fetch(url, {
-      headers: { 'Accept-Language': 'es,en', 'User-Agent': 'TartuWalker/1.0' }
-    });
-    if (!resp.ok) throw new Error(`Nominatim HTTP ${resp.status}`);
+    const url = `${CONFIG.BACKEND_URL}${CONFIG.APIS.NOMINATIM}?${query}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`Geocoding HTTP ${resp.status}`);
     const data = await resp.json();
     if (!data.length) throw new Error(`Dirección no encontrada: "${address}"`);
     const r = data[0];
@@ -829,10 +831,11 @@ const Geocoder = {
 // ════════════════════════════════════════════════════════════════
 const Overpass = {
   async _post(query) {
-    const resp = await fetch(CONFIG.APIS.OVERPASS, {
+    const url = `${CONFIG.BACKEND_URL}${CONFIG.APIS.OVERPASS}`;
+    const resp = await fetch(url, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body:    'data=' + encodeURIComponent(query),
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ query }),
     });
     if (!resp.ok) throw new Error(`Overpass HTTP ${resp.status}`);
     return resp.json();
