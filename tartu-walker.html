@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Tartu Walker — Rutas Peatonales</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%230B0F16' stroke='%232DD4BF' stroke-width='3'/><path d='M50 20 L65 50 L50 75 L35 50 Z' fill='%232DD4BF'/></svg>" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
@@ -152,6 +153,8 @@ body {
   border: 1px solid var(--border);
   border-radius: 10px;
   transition: border-color .2s, box-shadow .2s;
+  display: flex;
+  align-items: stretch;
 }
 
 .input-field-wrap:focus-within {
@@ -160,7 +163,8 @@ body {
 }
 
 .input-field-wrap input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   background: transparent;
   border: none;
   outline: none;
@@ -171,6 +175,27 @@ body {
 }
 
 .input-field-wrap input::placeholder { color: var(--muted); }
+
+.btn-pin {
+  flex-shrink: 0;
+  width: 40px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .2s, background .15s;
+  border-radius: 0 9px 9px 0;
+  padding: 0;
+}
+
+.btn-pin:hover  { color: var(--teal); background: var(--teal-dim); }
+.btn-pin:active { background: rgba(45,212,191,.2); }
+.btn-pin.pinned { color: var(--teal); }
+.btn-pin svg    { pointer-events: none; }
 
 .geocoded-badge {
   font-family: var(--font-mono);
@@ -561,6 +586,11 @@ body {
             <input type="text" id="inputA"
               placeholder="Ej: Ülikooli 18"
               onkeydown="if(event.key==='Enter')App.calculateRoute()" />
+            <button class="btn-pin" id="btnPinA" onclick="App.previewLocation('A')" title="Mostrar inicio en mapa">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+            </button>
           </div>
           <div class="geocoded-badge" id="badgeA"></div>
         </div>
@@ -574,6 +604,11 @@ body {
             <input type="text" id="inputB"
               placeholder="Ej: Riia 2"
               onkeydown="if(event.key==='Enter')App.calculateRoute()" />
+            <button class="btn-pin" id="btnPinB" onclick="App.previewLocation('B')" title="Mostrar destino en mapa">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+            </button>
           </div>
           <div class="geocoded-badge" id="badgeB"></div>
         </div>
@@ -606,6 +641,9 @@ body {
           </div>
         </div>
       </div>
+
+      <!-- Snap info -->
+      <div id="snapInfoPanel" class="hidden" style="padding: 0 20px 18px;"></div>
 
       <!-- POIs -->
       <div id="poiSection" class="poi-section hidden">
@@ -681,7 +719,7 @@ const CONFIG = {
   CACHE: {
     TTL_SIMPLE_MS:   24 * 3600e3,   // 24 h  — grafo simplificado de Tartu
     TTL_DETAIL_MS:    6 * 3600e3,   //  6 h  — grafo detallado por bbox
-    DB: 'tartu_walker_v2',
+    DB: 'tartu_walker_v3',
     VER: 1,
     STORE: 'g',
   },
@@ -945,8 +983,9 @@ const GraphBuilder = {
       const mult = this._mult(tags);
 
       for (let i = 0; i < nids.length - 1; i++) {
-        const [aId, bId] = [nids[i], nids[i+1]];
-        const [a, b]     = [nodes[aId], nodes[bId]];
+        const aId = String(nids[i]);
+        const bId = String(nids[i+1]);
+        const [a, b] = [nodes[aId], nodes[bId]];
         if (!a || !b) continue;
 
         const dist = Utils.haversine(a.lat, a.lon, b.lat, b.lon);
@@ -1073,17 +1112,36 @@ const Pathfinder = {
     return path;
   },
 
-  // Snapping de coordenada al nodo más cercano dentro del radio configurado
-  snapToNode(lat, lon, nodes) {
+  // Snap al nodo más cercano que tenga al menos una arista (no aislado)
+  snapToNode(lat, lon, nodes, edges) {
     let nearId = null, minD = Infinity;
     for (const [id, n] of Object.entries(nodes)) {
+      if (!edges[id] || edges[id].length === 0) continue;
       const d = Utils.haversine(lat, lon, n.lat, n.lon);
       if (d < minD) { minD = d; nearId = id; }
     }
-    if (minD > CONFIG.NODE_SNAP_RADIUS) {
+    if (!nearId || minD > CONFIG.NODE_SNAP_RADIUS) {
       throw new Error(
         `Sin vía transiteable a ${CONFIG.NODE_SNAP_RADIUS} m de la dirección. ` +
         `Prueba con una calle más concurrida.`
+      );
+    }
+    return nearId;
+  },
+
+  // Snap al nodo más cercano que sea alcanzable desde el destino (h[id] < ∞)
+  // Garantiza que A* siempre encontrará ruta.
+  snapToReachableNode(lat, lon, nodes, h) {
+    let nearId = null, minD = Infinity;
+    for (const [id, n] of Object.entries(nodes)) {
+      if ((h[id] ?? Infinity) === Infinity) continue;
+      const d = Utils.haversine(lat, lon, n.lat, n.lon);
+      if (d < minD) { minD = d; nearId = id; }
+    }
+    if (!nearId || minD > CONFIG.NODE_SNAP_RADIUS) {
+      throw new Error(
+        `No hay red peatonal conectada al destino a ${CONFIG.NODE_SNAP_RADIUS} m del origen. ` +
+        `Prueba una dirección más próxima a una calle transitada.`
       );
     }
     return nearId;
@@ -1187,9 +1245,12 @@ const POIFetcher = {
 // ██ MAP RENDERER  (Leaflet)
 // ════════════════════════════════════════════════════════════════
 const MapRenderer = {
-  map:        null,
-  routeLayer: null,
-  poiLayer:   null,
+  map:           null,
+  routeLayer:    null,
+  poiLayer:      null,
+  previewLayer:  null,
+  _pinA:         null,
+  _pinB:         null,
 
   init() {
     this.map = L.map('map', { zoomControl: false })
@@ -1200,8 +1261,9 @@ const MapRenderer = {
 
     L.control.zoom({ position: 'bottomright' }).addTo(this.map);
 
-    this.routeLayer = L.layerGroup().addTo(this.map);
-    this.poiLayer   = L.layerGroup().addTo(this.map);
+    this.previewLayer = L.layerGroup().addTo(this.map);
+    this.routeLayer   = L.layerGroup().addTo(this.map);
+    this.poiLayer     = L.layerGroup().addTo(this.map);
   },
 
   _divIcon(emoji, color, size = 34) {
@@ -1217,9 +1279,25 @@ const MapRenderer = {
   clear() {
     this.routeLayer.clearLayers();
     this.poiLayer.clearLayers();
+    this.previewLayer.clearLayers();
+    this._pinA = null;
+    this._pinB = null;
   },
 
-  drawRoute(path, nodes) {
+  setPreviewPin(which, loc) {
+    const isA  = which === 'A';
+    const prev = isA ? this._pinA : this._pinB;
+    if (prev) this.previewLayer.removeLayer(prev);
+
+    const icon = this._divIcon(isA ? '🚶' : '🏁', isA ? '#1A9C8E' : '#D9534F', 48);
+    const pin  = L.marker([loc.lat, loc.lon], { icon })
+      .bindPopup(`<b>${isA ? 'Inicio' : 'Destino'}</b><br><small>${loc.display}</small>`)
+      .addTo(this.previewLayer);
+
+    if (isA) this._pinA = pin; else this._pinB = pin;
+  },
+
+  drawRoute(path, nodes, snapInfo) {
     this.routeLayer.clearLayers();
 
     const coords = path.map(id => [nodes[id].lat, nodes[id].lon]);
@@ -1232,16 +1310,118 @@ const MapRenderer = {
     L.polyline(coords, { color:'#2DD4BF', weight:5, opacity:.95, lineJoin:'round', lineCap:'round' })
       .addTo(this.routeLayer);
 
-    // Marcadores inicio / fin
-    L.marker(coords[0],              { icon: this._divIcon('🚶', '#1A9C8E', 40) })
-      .bindPopup('<b>Inicio</b>')
+    // ──── Mostrar snapping: ubicación geocoded vs nodo snapped ────
+    if (snapInfo && snapInfo.startNode && snapInfo.destNode) {
+      // INICIO: geocoded (azul) y snapped (verde)
+      L.circleMarker([snapInfo.locA.lat, snapInfo.locA.lon], {
+        radius: 8,
+        fillColor: '#45B7D1',
+        color: '#FFF',
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.9,
+      })
+      .bindPopup(`<b>Inicio Geocoded</b><br>${Utils.fmtCoord(snapInfo.locA.lat, snapInfo.locA.lon)}`, { closeButton: false })
       .addTo(this.routeLayer);
 
-    L.marker(coords[coords.length-1], { icon: this._divIcon('🏁', '#D9534F', 40) })
-      .bindPopup('<b>Destino</b>')
+      // Nodo snapped de inicio (con ícono)
+      L.marker([snapInfo.startNode.lat, snapInfo.startNode.lon], {
+        icon: this._divIcon('🚶', '#1A9C8E', 80)
+      })
+      .bindPopup(`<b>Inicio (Snapped)</b><br>Node ${snapInfo.startId}<br>${Utils.fmtCoord(snapInfo.startNode.lat, snapInfo.startNode.lon)}`, { closeButton: false })
       .addTo(this.routeLayer);
+
+      // Línea de conexión inicio (punteada, naranja)
+      L.polyline(
+        [[snapInfo.locA.lat, snapInfo.locA.lon], [snapInfo.startNode.lat, snapInfo.startNode.lon]],
+        { color: '#FBBF24', weight: 2, opacity: 0.6, dashArray: '4, 4', lineJoin: 'round' }
+      ).addTo(this.routeLayer);
+
+      // DESTINO: geocoded (azul) y snapped (rojo)
+      L.circleMarker([snapInfo.locB.lat, snapInfo.locB.lon], {
+        radius: 8,
+        fillColor: '#45B7D1',
+        color: '#FFF',
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.9,
+      })
+      .bindPopup(`<b>Destino Geocoded</b><br>${Utils.fmtCoord(snapInfo.locB.lat, snapInfo.locB.lon)}`, { closeButton: false })
+      .addTo(this.routeLayer);
+
+      // Nodo snapped de destino (con ícono)
+      L.marker([snapInfo.destNode.lat, snapInfo.destNode.lon], {
+        icon: this._divIcon('🏁', '#D9534F', 80)
+      })
+      .bindPopup(`<b>Destino (Snapped)</b><br>Node ${snapInfo.destId}<br>${Utils.fmtCoord(snapInfo.destNode.lat, snapInfo.destNode.lon)}`, { closeButton: false })
+      .addTo(this.routeLayer);
+
+      // Línea de conexión destino (punteada, naranja)
+      L.polyline(
+        [[snapInfo.locB.lat, snapInfo.locB.lon], [snapInfo.destNode.lat, snapInfo.destNode.lon]],
+        { color: '#FBBF24', weight: 2, opacity: 0.6, dashArray: '4, 4', lineJoin: 'round' }
+      ).addTo(this.routeLayer);
+
+      // Mostrar panel de info de snapping
+      MapRenderer._showSnapInfo(snapInfo);
+    } else {
+      // Fallback si no hay snapInfo (para compatibilidad)
+      L.marker(coords[0],              { icon: this._divIcon('🚶', '#1A9C8E', 80) })
+        .bindPopup('<b>Inicio</b>')
+        .addTo(this.routeLayer);
+
+      L.marker(coords[coords.length-1], { icon: this._divIcon('🏁', '#D9534F', 80) })
+        .bindPopup('<b>Destino</b>')
+        .addTo(this.routeLayer);
+    }
 
     this.map.fitBounds(L.latLngBounds(coords), { padding: [60, 60] });
+  },
+
+  /**
+   * Muestra panel informativo del snapping
+   */
+  _showSnapInfo(snapInfo) {
+    const distStart = Utils.haversine(
+      snapInfo.locA.lat, snapInfo.locA.lon,
+      snapInfo.startNode.lat, snapInfo.startNode.lon
+    );
+    const distEnd = Utils.haversine(
+      snapInfo.locB.lat, snapInfo.locB.lon,
+      snapInfo.destNode.lat, snapInfo.destNode.lon
+    );
+
+    const html = `
+      <div style="padding:12px; background:linear-gradient(135deg, #131820, #1A2030); 
+        color:#DCE4F0; border-radius:8px; border: 1px solid #2E3A50; 
+        font-family: monospace; font-size:10px; line-height:1.5;">
+        <h3 style="margin:0 0 8px 0; color:#2DD4BF; font-size:11px;">🎯 NODE SNAPPING</h3>
+        
+        <div style="margin-bottom:8px; padding-bottom:8px; border-bottom: 1px solid #252E40;">
+          <div style="color:#34D399; margin-bottom:2px;">📍 INICIO</div>
+          <div>Geocoded: ${Utils.fmtCoord(snapInfo.locA.lat, snapInfo.locA.lon)}</div>
+          <div>Snapped: Node ${snapInfo.startId}</div>
+          <div style="color:#FBBF24; margin-top:2px;">Desviación: <strong>${Math.round(distStart)}m</strong></div>
+        </div>
+
+        <div style="margin-bottom:8px; padding-bottom:8px; border-bottom: 1px solid #252E40;">
+          <div style="color:#34D399; margin-bottom:2px;">📍 DESTINO</div>
+          <div>Geocoded: ${Utils.fmtCoord(snapInfo.locB.lat, snapInfo.locB.lon)}</div>
+          <div>Snapped: Node ${snapInfo.destId}</div>
+          <div style="color:#FBBF24; margin-top:2px;">Desviación: <strong>${Math.round(distEnd)}m</strong></div>
+        </div>
+
+        <div style="font-size:9px; color:#8898AA;">
+          💡 Las líneas <span style="color:#FBBF24;">naranjas punteadas</span> muestran la desviación
+        </div>
+      </div>
+    `;
+
+    const panel = document.getElementById('snapInfoPanel');
+    if (panel) {
+      panel.innerHTML = html;
+      panel.classList.remove('hidden');
+    }
   },
 
   drawPOIs(pois) {
@@ -1342,6 +1522,7 @@ const UI = {
 
   resetResults() {
     document.getElementById('routeInfo').classList.add('hidden');
+    document.getElementById('snapInfoPanel').classList.add('hidden');
     document.getElementById('poiSection').classList.add('hidden');
     this.clearBadges();
   },
@@ -1374,6 +1555,36 @@ const App = {
     } catch (e) {
       console.warn('Preload falló:', e);
       UI.setCacheStatus('error', 'Carga bajo demanda activa');
+    }
+  },
+
+  async previewLocation(which) {
+    const address = document.getElementById(`input${which}`).value.trim();
+    if (!address) { UI.toast('Escribe una dirección primero.', 'error'); return; }
+
+    const btn = document.getElementById(`btnPin${which}`);
+    if (btn) btn.disabled = true;
+
+    try {
+      const loc = await Geocoder.geocode(address);
+      UI.setBadge(`badge${which}`, loc.lat, loc.lon);
+
+      // Snap al nodo conexo más cercano si el grafo ya está cargado
+      let pinLat = loc.lat, pinLon = loc.lon;
+      if (this.graph?.nodes && this.graph?.edges) {
+        try {
+          const nodeId = Pathfinder.snapToNode(loc.lat, loc.lon, this.graph.nodes, this.graph.edges);
+          const node   = this.graph.nodes[nodeId];
+          if (node) { pinLat = node.lat; pinLon = node.lon; }
+        } catch (_) { /* grafo aún sin cobertura aquí → usar coords geocoded */ }
+      }
+
+      MapRenderer.setPreviewPin(which, { lat: pinLat, lon: pinLon, display: loc.display });
+      MapRenderer.flyTo(pinLat, pinLon, 16);
+      if (btn) { btn.disabled = false; btn.classList.add('pinned'); }
+    } catch (e) {
+      UI.toast(e.message, 'error', 5000);
+      if (btn) btn.disabled = false;
     }
   },
 
@@ -1417,18 +1628,25 @@ const App = {
         throw new Error('El área no contiene vías transitables. Amplía el radio de búsqueda.');
       }
 
-      // ── 4. Node snapping ────────────────────────────────────
-      UI.progress('Mapeando direcciones al grafo…', '04 / 06', 55);
-      const startId = Pathfinder.snapToNode(locA.lat, locA.lon, graph.nodes);
-      const destId  = Pathfinder.snapToNode(locB.lat, locB.lon, graph.nodes);
+      // ── 4. Snap destino (nodo con aristas) ──────────────────
+      UI.progress('Mapeando destino al grafo…', '04 / 06', 52);
+      const destId = Pathfinder.snapToNode(locB.lat, locB.lon, graph.nodes, graph.edges);
 
       // ── 5. Dijkstra inverso desde destino ───────────────────
-      UI.progress('Calculando heurística (Dijkstra inverso)…', '05 / 06', 68);
+      UI.progress('Calculando heurística (Dijkstra inverso)…', '05 / 06', 65);
       const h = Pathfinder.dijkstraFromDest(graph, destId);
 
-      if ((h[startId] ?? Infinity) === Infinity) {
-        throw new Error('El grafo está desconectado entre los puntos elegidos. Intenta con direcciones más conectadas.');
-      }
+      // ── 4b. Snap origen → nodo más cercano alcanzable ───────
+      UI.progress('Mapeando origen al grafo…', '05 / 06', 74);
+      const startId = Pathfinder.snapToReachableNode(locA.lat, locA.lon, graph.nodes, h);
+
+      // ── Guardar info de snapping para debug ──────────────────
+      this.snapInfo = {
+        startId, destId,
+        locA, locB,
+        startNode: graph.nodes[startId],
+        destNode: graph.nodes[destId],
+      };
 
       // ── Guardar grafo para debug ────────────────────────────
       this.graph = graph;
@@ -1442,7 +1660,7 @@ const App = {
 
       // ── Renderizado ─────────────────────────────────────────
       UI.progress('Renderizando ruta y POIs…', '06 / 06', 92);
-      MapRenderer.drawRoute(path, graph.nodes);
+      MapRenderer.drawRoute(path, graph.nodes, this.snapInfo);
       UI.renderStats(stats);
 
       // POIs (puede fallar sin romper el flujo principal)
@@ -1472,6 +1690,10 @@ const App = {
     UI.resetResults();
     document.getElementById('inputA').value = '';
     document.getElementById('inputB').value = '';
+    ['btnPinA', 'btnPinB'].forEach(id => {
+      const b = document.getElementById(id);
+      if (b) b.classList.remove('pinned');
+    });
     MapRenderer.map.setView(CONFIG.MAP.CENTER, CONFIG.MAP.ZOOM);
   },
 };
