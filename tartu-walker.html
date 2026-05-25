@@ -1298,6 +1298,7 @@ out center ${lim};`);
 // ════════════════════════════════════════════════════════════════
 const GraphBuilder = {
   // Calcula multiplicador de coste (sistema aditivo con bonificaciones)
+  // Devuelve { mult, applied, hw } para debug y construcción de aristas
   _mult(tags) {
     const hw  = tags.highway  || '';
     const ft  = tags.foot     || '';
@@ -1308,24 +1309,36 @@ const GraphBuilder = {
     const P = CONFIG.COST.PENALTIES;
     const B = CONFIG.COST.BONUSES;
     let d = 0;
+    const applied = {};
 
     // ── Penalizaciones ───────────────────────────────────────
-    if (/^(primary|secondary|trunk|motorway)$/.test(hw))       d += P.main_road;
-    if (/^tertiary$/.test(hw) && !tags.sidewalk)               d += P.fast_tertiary;
+    if (/^(primary|secondary|trunk|motorway)$/.test(hw) && P.main_road !== 0)
+      { d += P.main_road;      applied.main_road      = P.main_road; }
+    if (/^tertiary$/.test(hw) && !tags.sidewalk)
+      { d += P.fast_tertiary;  applied.fast_tertiary  = P.fast_tertiary; }
     if (!/^(footway|path|pedestrian|living_street|steps|cycleway)$/.test(hw)
-        && !/^(yes|designated)$/.test(ft))                     d += P.non_pedestrian;
-    if (lit === 'no')                                          d += P.no_lighting;
+        && !/^(yes|designated)$/.test(ft))
+      { d += P.non_pedestrian; applied.non_pedestrian = P.non_pedestrian; }
+    if (lit === 'no')
+      { d += P.no_lighting;    applied.no_lighting    = P.no_lighting; }
 
     // ── Bonificaciones ───────────────────────────────────────
-    if (/^(footway|path|pedestrian)$/.test(hw))                d += B.footway_path;
-    if (hw === 'living_street')                                d += B.living_street;
-    if (/^(park|garden|nature_reserve|forest|grass|meadow|recreation_ground)$/.test(lei)
+    if (/^(footway|path|pedestrian)$/.test(hw) && B.footway_path !== 0)
+      { d += B.footway_path;   applied.footway_path   = B.footway_path; }
+    if (hw === 'living_street')
+      { d += B.living_street;  applied.living_street  = B.living_street; }
+    if ((/^(park|garden|nature_reserve|forest|grass|meadow|recreation_ground)$/.test(lei)
         || /^(park|forest|grass|meadow|recreation_ground|village_green)$/.test(lnd))
-                                                               d += B.green_area;
-    if (/^(paved|paving_stones)$/.test(srf))                   d += B.good_surface;
-    if (lit === 'yes')                                         d += B.lit;
+        && B.green_area !== 0)
+      { d += B.green_area;     applied.green_area     = B.green_area; }
+    if (/^(paved|paving_stones)$/.test(srf))
+      { d += B.good_surface;   applied.good_surface   = B.good_surface; }
+    if (lit === 'yes')
+      { d += B.lit;            applied.lit            = B.lit; }
 
-    return Math.max(CONFIG.COST.MIN_MULT, 1.0 + d);
+    const mult = Math.max(CONFIG.COST.MIN_MULT, 1.0 + d);
+    const hwLabel = hw || lei || lnd || '–';
+    return { mult, applied, hw: hwLabel };
   },
 
   // Construye {nodes, edges} desde datos OSM crudos
@@ -1343,7 +1356,7 @@ const GraphBuilder = {
       if (el.type !== 'way') continue;
       const tags = el.tags || {};
       const nids = el.nodes;
-      const mult = this._mult(tags);
+      const { mult, applied, hw } = this._mult(tags);
 
       for (let i = 0; i < nids.length - 1; i++) {
         const aId = String(nids[i]);
@@ -1356,8 +1369,8 @@ const GraphBuilder = {
 
         if (!edges[aId]) edges[aId] = [];
         if (!edges[bId]) edges[bId] = [];
-        edges[aId].push({ to: bId, cost, dist });
-        edges[bId].push({ to: aId, cost, dist });
+        edges[aId].push({ to: bId, cost, dist, mult, applied, hw });
+        edges[bId].push({ to: aId, cost, dist, mult, applied, hw });
       }
     }
 
@@ -2352,23 +2365,61 @@ const GraphDebug = {
       });
     });
 
-    // Dibujar edges primero (para que estén debajo)
+    // Paleta de color por multiplicador de coste
+    const multColor = m => m <= 0.88 ? '#2DD4BF'   // teal  — bonificado
+                         : m <= 1.08 ? '#8898AA'   // gris  — neutro
+                         : m <= 1.60 ? '#FBBF24'   // ámbar — penalización moderada
+                         :             '#F87171';  // rojo  — penalización alta
+
+    // Dibujar edges primero (para que estén debajo de los nodos)
+    const seen = new Set();
     for (const [fromId, edges] of Object.entries(graph.edges)) {
       for (const edge of edges) {
+        // Evitar dibujar cada arista bidireccional dos veces
+        const key = fromId < edge.to ? `${fromId}-${edge.to}` : `${edge.to}-${fromId}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
         const from = graph.nodes[fromId];
-        const to = graph.nodes[edge.to];
-        
-        if (from && to) {
-          const polyline = L.polyline(
-            [[from.lat, from.lon], [to.lat, to.lon]],
-            {
-              color: componentColor[fromId] || '#999',
-              weight: 1,
-              opacity: 0.3,
-              dashArray: '2, 2',
-            }
-          ).addTo(fg);
-        }
+        const to   = graph.nodes[edge.to];
+        if (!from || !to) continue;
+
+        const coords = [[from.lat, from.lon], [to.lat, to.lon]];
+        const col    = multColor(edge.mult ?? 1.0);
+
+        // Línea visible (no interactiva)
+        L.polyline(coords, {
+          color: col, weight: 2, opacity: 0.55,
+          dashArray: edge.mult > 1.08 ? '4 3' : null,
+          interactive: false,
+        }).addTo(fg);
+
+        // Zona de clic invisible (interactiva)
+        const ap      = edge.applied || {};
+        const entries = Object.entries(ap);
+        const rulesHtml = entries.length
+          ? entries.map(([name, delta]) => {
+              const sign  = delta > 0 ? '+' : '';
+              const color = delta < 0 ? '#34D399' : '#F87171';
+              return `<div style="color:${color};">${delta < 0 ? '✓' : '⚠'} <b>${name}</b>: ${sign}${delta.toFixed(2)}</div>`;
+            }).join('')
+          : '<div style="color:#5A6A80;">Sin modificadores (×1.00)</div>';
+
+        const multStr  = (edge.mult ?? 1).toFixed(3);
+        const multCol  = col;
+        const popupHtml = `
+          <div style="font-family:monospace;font-size:11px;color:#DCE4F0;min-width:190px;line-height:1.7;">
+            <div style="color:#8898AA;margin-bottom:4px;font-size:10px;">highway: <b style="color:#DCE4F0;">${edge.hw || '–'}</b></div>
+            <div>dist: <b style="color:#2DD4BF;">${Math.round(edge.dist)} m</b></div>
+            <div>mult: <b style="color:${multCol};">×${multStr}</b></div>
+            <div>cost: <b>${(edge.cost ?? 0).toFixed(1)}</b></div>
+            <hr style="border:none;border-top:1px solid #252E40;margin:5px 0;"/>
+            ${rulesHtml}
+          </div>`;
+
+        L.polyline(coords, { weight: 12, opacity: 0, interactive: true })
+          .bindPopup(popupHtml, { maxWidth: 260 })
+          .addTo(fg);
       }
     }
 
@@ -2513,8 +2564,13 @@ const GraphDebug = {
           Algunos nodos NO conectan con otros.
         </div>
         ` : ''}
-        <div style="margin-top:8px; font-size:10px; color:#8898AA;">
-          💡 Click en nodos para ver detalles
+        <div style="margin-top:10px; font-size:10px; color:#8898AA; line-height:1.8;">
+          💡 Click en <b style="color:#DCE4F0;">nodos</b> para ver conexiones<br/>
+          💡 Click en <b style="color:#DCE4F0;">links</b> para ver propiedades<br/>
+          <span style="color:#2DD4BF;">■</span> bonificado &nbsp;
+          <span style="color:#8898AA;">■</span> neutro &nbsp;
+          <span style="color:#FBBF24;">■</span> penalizado &nbsp;
+          <span style="color:#F87171;">■</span> muy penalizado
         </div>
       </div>
     `;
