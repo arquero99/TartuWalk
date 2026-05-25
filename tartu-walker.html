@@ -501,6 +501,191 @@ input[type=range].pref-slider:hover::-webkit-slider-thumb {
   flex-shrink: 0;
 }
 
+/* ── POI radius slider ───────────────────────────────── */
+.poi-radius-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+input[type=range].poi-radius-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 3px;
+  background: linear-gradient(
+    to right,
+    var(--teal) 0%,
+    var(--teal) calc(var(--poi-r-pct, 18) * 1%),
+    var(--border2) calc(var(--poi-r-pct, 18) * 1%),
+    var(--border2) 100%
+  );
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type=range].poi-radius-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--teal);
+  border: 2px solid var(--panel);
+  box-shadow: 0 0 0 1px var(--teal);
+  cursor: pointer;
+}
+
+input[type=range].poi-radius-slider::-moz-range-thumb {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--teal);
+  border: 2px solid var(--panel);
+  box-shadow: 0 0 0 1px var(--teal);
+  cursor: pointer;
+}
+
+.poi-radius-val {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--teal);
+  min-width: 34px;
+  text-align: right;
+}
+
+/* ── POI filter chips ───────────────────────────────── */
+.poi-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.poi-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  font-size: 10.5px;
+  color: var(--muted2);
+  cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+  font-family: var(--font-ui);
+}
+
+.poi-chip.active {
+  background: var(--teal-dim);
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.poi-chip:hover { color: var(--text); border-color: var(--muted2); }
+.poi-chip.active:hover { color: var(--teal); border-color: var(--teal); }
+
+/* ── POI group header ───────────────────────────────── */
+.poi-group-hdr {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 10px 10px 4px;
+}
+
+/* ── POI dropdown ───────────────────────────────────── */
+.poi-item .poi-chevron {
+  font-size: 12px;
+  color: var(--muted);
+  transition: transform .2s;
+  flex-shrink: 0;
+  margin-left: 2px;
+  line-height: 1;
+}
+
+.poi-item.expanded .poi-chevron { transform: rotate(90deg); }
+
+.poi-dropdown {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height .22s ease;
+}
+
+.poi-dropdown.open { max-height: 130px; }
+
+.poi-dd-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 14px 7px 42px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 11.5px;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+  transition: background .1s;
+}
+
+.poi-dd-btn:hover { background: rgba(255,255,255,.04); }
+.poi-dd-btn:first-child { padding-top: 8px; }
+.poi-dd-btn:last-child  { padding-bottom: 8px; }
+
+/* ── Waypoint bar ───────────────────────────────────── */
+.waypoint-bar {
+  margin: 4px 20px 6px;
+  padding: 8px 10px 8px 12px;
+  background: rgba(251,191,36,.06);
+  border: 1px solid rgba(251,191,36,.4);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.waypoint-bar.hidden { display: none; }
+
+.waypoint-icon { font-size: 13px; flex-shrink: 0; }
+
+.waypoint-info { flex: 1; min-width: 0; }
+
+.waypoint-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 1px;
+}
+
+.waypoint-name {
+  font-size: 11.5px;
+  color: var(--amber);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.waypoint-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  transition: color .15s, background .15s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.waypoint-remove:hover { color: var(--red); background: rgba(248,113,113,.1); }
+
 /* ── Cache status (footer) ───────────────────────────── */
 .cache-status {
   margin-top: auto;
@@ -727,6 +912,16 @@ input[type=range].pref-slider:hover::-webkit-slider-thumb {
         </div>
       </div>
 
+      <!-- Waypoint bar (parada intermedia) -->
+      <div class="waypoint-bar hidden" id="waypointBar">
+        <span class="waypoint-icon">📍</span>
+        <div class="waypoint-info">
+          <div class="waypoint-label">Parada</div>
+          <div class="waypoint-name" id="waypointName">–</div>
+        </div>
+        <button class="waypoint-remove" onclick="App.removeWaypoint()" title="Eliminar parada">✕</button>
+      </div>
+
       <div class="pref-slider-section">
         <div class="pref-slider-header">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
@@ -780,6 +975,15 @@ input[type=range].pref-slider:hover::-webkit-slider-thumb {
           <span class="section-label">Puntos de interés</span>
           <span class="poi-count" id="poiCount">0</span>
         </div>
+        <div class="poi-radius-row">
+          <span style="font-size:9.5px;color:var(--muted2);white-space:nowrap;letter-spacing:.4px;">Radio</span>
+          <input type="range" class="poi-radius-slider" id="poiRadiusSlider"
+            min="50" max="600" value="150"
+            style="--poi-r-pct:18"
+            oninput="App.onPoiRadiusSlider(this.value)" />
+          <span class="poi-radius-val" id="poiRadiusVal">150m</span>
+        </div>
+        <div class="poi-filters" id="poiFilters"></div>
         <div class="poi-list" id="poiList"></div>
       </div>
 
@@ -841,7 +1045,8 @@ const CONFIG = {
 
   POI: {
     MAX_RESULTS:  50,
-    BUFFER_DEG:   0.0015,   // buffer del bbox de la ruta (~150m)
+    BUFFER_DEG:   0.00135,  // calculado desde BUFFER_M (150m / 111000)
+    BUFFER_M:     150,      // controlado por slider (50–600 m)
   },
 
   CACHE: {
@@ -1327,29 +1532,37 @@ const Pathfinder = {
 // ██ POI FETCHER
 // ════════════════════════════════════════════════════════════════
 const POIFetcher = {
+
+  CATS: [
+    { id: 'naturaleza', label: 'Verde',    icon: '🌿', col: '#34D399' },
+    { id: 'cultura',    label: 'Cultura',  icon: '🏛️', col: '#BC8CFF' },
+    { id: 'servicios',  label: 'Servicios',icon: '🪑', col: '#8898AA' },
+    { id: 'ocio',       label: 'Ocio',     icon: '☕', col: '#FBBF24' },
+  ],
+
   DEFS: [
-    { tag:'amenity', vals:['drinking_water'],      icon:'💧', lbl:'Agua potable',  col:'#58bfff' },
-    { tag:'amenity', vals:['fountain'],             icon:'⛲', lbl:'Fuente',        col:'#58bfff' },
-    { tag:'amenity', vals:['bench'],                icon:'🪑', lbl:'Banco',         col:'#8898AA' },
-    { tag:'amenity', vals:['toilets'],              icon:'🚻', lbl:'Aseos',         col:'#8898AA' },
-    { tag:'amenity', vals:['cafe','restaurant'],    icon:'☕', lbl:'Cafetería',     col:'#FBBF24' },
-    { tag:'amenity', vals:['pharmacy'],             icon:'💊', lbl:'Farmacia',      col:'#34D399' },
-    { tag:'historic',vals:['monument','memorial','statue','ruins'], icon:'🗿', lbl:'Monumento', col:'#BC8CFF' },
-    { tag:'tourism', vals:['viewpoint'],            icon:'🔭', lbl:'Mirador',       col:'#FFA657' },
-    { tag:'tourism', vals:['artwork'],              icon:'🎨', lbl:'Arte',          col:'#FFA657' },
-    { tag:'tourism', vals:['museum'],               icon:'🏛️', lbl:'Museo',         col:'#FFA657' },
-    { tag:'tourism', vals:['information'],          icon:'ℹ️', lbl:'Información',   col:'#FFA657' },
-    { tag:'leisure', vals:['pitch'],                icon:'⚽', lbl:'Campo deportivo',col:'#34D399' },
-    { tag:'leisure', vals:['playground'],           icon:'🛝', lbl:'Parque infantil',col:'#34D399' },
-    { tag:'leisure', vals:['fitness_station'],      icon:'🏋️', lbl:'Gym exterior',  col:'#34D399' },
-    { tag:'leisure', vals:['park','garden','nature_reserve'], icon:'🌳', lbl:'Zona verde', col:'#34D399' },
+    { tag:'amenity', vals:['drinking_water'],      cat:'servicios',  icon:'💧', lbl:'Agua potable',   col:'#58bfff' },
+    { tag:'amenity', vals:['fountain'],             cat:'servicios',  icon:'⛲', lbl:'Fuente',         col:'#58bfff' },
+    { tag:'amenity', vals:['bench'],                cat:'servicios',  icon:'🪑', lbl:'Banco',          col:'#8898AA' },
+    { tag:'amenity', vals:['toilets'],              cat:'servicios',  icon:'🚻', lbl:'Aseos',          col:'#8898AA' },
+    { tag:'amenity', vals:['cafe','restaurant'],    cat:'ocio',       icon:'☕', lbl:'Cafetería',      col:'#FBBF24' },
+    { tag:'amenity', vals:['pharmacy'],             cat:'servicios',  icon:'💊', lbl:'Farmacia',       col:'#34D399' },
+    { tag:'historic',vals:['monument','memorial','statue','ruins'], cat:'cultura', icon:'🗿', lbl:'Monumento', col:'#BC8CFF' },
+    { tag:'tourism', vals:['viewpoint'],            cat:'cultura',    icon:'🔭', lbl:'Mirador',        col:'#FFA657' },
+    { tag:'tourism', vals:['artwork'],              cat:'cultura',    icon:'🎨', lbl:'Arte',           col:'#FFA657' },
+    { tag:'tourism', vals:['museum'],               cat:'cultura',    icon:'🏛️', lbl:'Museo',          col:'#FFA657' },
+    { tag:'tourism', vals:['information'],          cat:'cultura',    icon:'ℹ️', lbl:'Información',    col:'#FFA657' },
+    { tag:'leisure', vals:['pitch'],                cat:'naturaleza', icon:'⚽', lbl:'Campo deportivo',col:'#34D399' },
+    { tag:'leisure', vals:['playground'],           cat:'naturaleza', icon:'🛝', lbl:'Parque infantil',col:'#34D399' },
+    { tag:'leisure', vals:['fitness_station'],      cat:'naturaleza', icon:'🏋️', lbl:'Gym exterior',   col:'#34D399' },
+    { tag:'leisure', vals:['park','garden','nature_reserve'], cat:'naturaleza', icon:'🌳', lbl:'Zona verde', col:'#34D399' },
   ],
 
   classify(tags) {
     for (const d of this.DEFS) {
       if (tags[d.tag] && d.vals.includes(tags[d.tag])) return d;
     }
-    return { icon:'📌', lbl:'Punto de interés', col:'#8898AA' };
+    return { icon:'📌', lbl:'Punto de interés', col:'#8898AA', cat:'servicios' };
   },
 
   async fetch(path, nodes) {
@@ -1537,9 +1750,25 @@ const MapRenderer = {
   drawPOIs(pois) {
     this.poiLayer.clearLayers();
     for (const poi of pois) {
-      const icon = this._divIcon(poi.def.icon, poi.def.col, 28);
+      const icon    = this._divIcon(poi.def.icon, poi.def.col, 28);
+      const gUrl    = `https://www.google.com/search?q=${encodeURIComponent(poi.name + ' Tartu')}`;
+      const popupHtml = `
+        <div style="font-size:13px;font-weight:600;margin-bottom:5px;color:#DCE4F0;">${poi.name}</div>
+        <div style="font-size:10.5px;color:#5A6A80;margin-bottom:10px;">${poi.def.lbl} · ${Utils.fmtDist(poi.distToRoute)} de la ruta</div>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <button onclick="App.addWaypoint(${poi.id})"
+            style="background:rgba(45,212,191,.12);border:1px solid rgba(45,212,191,.4);color:#2DD4BF;
+                   padding:6px 10px;border-radius:6px;font-size:11.5px;cursor:pointer;text-align:left;width:100%;">
+            📍 Añadir parada
+          </button>
+          <a href="${gUrl}" target="_blank" rel="noopener noreferrer"
+            style="background:rgba(88,152,255,.1);border:1px solid rgba(88,152,255,.3);color:#58bfff;
+                   padding:6px 10px;border-radius:6px;font-size:11.5px;text-decoration:none;display:block;">
+            🔍 Saber más
+          </a>
+        </div>`;
       L.marker([poi.lat, poi.lon], { icon })
-        .bindPopup(`<b>${poi.name}</b><br><small>${poi.def.lbl} · ${Utils.fmtDist(poi.distToRoute)} de la ruta</small>`)
+        .bindPopup(popupHtml, { maxWidth: 210, className: 'poi-map-popup' })
         .addTo(this.poiLayer);
     }
   },
@@ -1615,19 +1844,71 @@ const UI = {
   },
 
   renderPOIs(pois) {
-    const sec   = document.getElementById('poiSection');
-    const list  = document.getElementById('poiList');
-    const count = document.getElementById('poiCount');
+    const sec = document.getElementById('poiSection');
     if (!pois.length) { sec.classList.add('hidden'); return; }
     sec.classList.remove('hidden');
-    count.textContent = pois.length;
-    list.innerHTML = pois.map(p => `
-      <div class="poi-item" onclick="MapRenderer.flyTo(${p.lat},${p.lon})">
-        <span class="poi-icon">${p.def.icon}</span>
-        <span class="poi-name">${p.name}</span>
-        <span class="poi-dist">${Utils.fmtDist(p.distToRoute)}</span>
-      </div>
-    `).join('');
+    // Store on App for filter re-renders
+    App.allPois  = pois;
+    App._poiMap  = {};
+    for (const p of pois) App._poiMap[p.id] = p;
+    document.getElementById('poiCount').textContent = pois.length;
+    this._renderPoiFilters();
+    this._renderPoiList();
+  },
+
+  _renderPoiFilters() {
+    const el = document.getElementById('poiFilters');
+    if (!el) return;
+    el.innerHTML = POIFetcher.CATS.map(c => `
+      <button class="poi-chip ${App._poiActiveFilters.has(c.id) ? 'active' : ''}"
+        onclick="App.togglePoiFilter('${c.id}')">
+        ${c.icon} ${c.label}
+      </button>`).join('');
+  },
+
+  _renderPoiList() {
+    const list = document.getElementById('poiList');
+    if (!list) return;
+    const active   = App._poiActiveFilters;
+    const radiusM  = CONFIG.POI.BUFFER_M;
+    const filtered = (App.allPois || []).filter(p =>
+      p.distToRoute <= radiusM && active.has(p.def.cat)
+    );
+    document.getElementById('poiCount').textContent = filtered.length;
+
+    if (!filtered.length) {
+      list.innerHTML = '<div style="padding:8px 10px;font-size:12px;color:var(--muted);">Sin POIs para esta selección</div>';
+      return;
+    }
+
+    // Group by cat, preserving CATS order
+    const groups = {};
+    POIFetcher.CATS.forEach(c => { groups[c.id] = []; });
+    filtered.forEach(p => { (groups[p.def.cat] || (groups['servicios'] = groups['servicios'] || [])).push(p); });
+
+    let html = '';
+    for (const cat of POIFetcher.CATS) {
+      const items = groups[cat.id];
+      if (!items || !items.length) continue;
+      html += `<div class="poi-group-hdr">${cat.icon} ${cat.label}</div>`;
+      for (const p of items) {
+        const gUrl = `https://www.google.com/search?q=${encodeURIComponent(p.name + ' Tartu')}`;
+        html += `
+          <div class="poi-item" onclick="App.togglePoiDropdown(${p.id})">
+            <span class="poi-icon">${p.def.icon}</span>
+            <span class="poi-name">${p.name}</span>
+            <span class="poi-dist">${Utils.fmtDist(p.distToRoute)}</span>
+            <span class="poi-chevron">›</span>
+          </div>
+          <div class="poi-dropdown" id="poi-dd-${p.id}">
+            <button class="poi-dd-btn" onclick="event.stopPropagation();MapRenderer.flyTo(${p.lat},${p.lon})">🗺️ Ver en mapa</button>
+            <button class="poi-dd-btn" onclick="event.stopPropagation();App.addWaypoint(${p.id})">📍 Añadir parada</button>
+            <a class="poi-dd-btn" href="${gUrl}" target="_blank" rel="noopener noreferrer"
+               onclick="event.stopPropagation()">🔍 Saber más</a>
+          </div>`;
+      }
+    }
+    list.innerHTML = html;
   },
 
   resetResults() {
@@ -1645,6 +1926,12 @@ const App = {
 
   async init() {
     MapRenderer.init();
+    this._poiActiveFilters = new Set(POIFetcher.CATS.map(c => c.id));
+    this.waypoint   = null;
+    this.lastPath   = null;
+    this.lastGraph  = null;
+    this._poiMap    = {};
+    this.allPois    = [];
     this._preloadGraph();
   },
 
@@ -1807,9 +2094,28 @@ const App = {
       UI.progress('Calculando heurística (Dijkstra inverso)…', '05 / 06', 65);
       const h = Pathfinder.dijkstraFromDest(graph, destId);
 
-      // ── 4b. Snap origen → nodo más cercano alcanzable ───────
-      UI.progress('Mapeando origen al grafo…', '05 / 06', 74);
-      const startId = Pathfinder.snapToReachableNode(locA.lat, locA.lon, graph.nodes, h);
+      // ── 4b/6. Snap origen + A* (con o sin parada) ───────────
+      let path, startId;
+
+      if (this.waypoint) {
+        // Ruta en dos tramos: A → parada → B
+        UI.progress('Mapeando parada al grafo…', '05 / 07', 68);
+        const wpId = Pathfinder.snapToReachableNode(this.waypoint.lat, this.waypoint.lon, graph.nodes, h);
+        UI.progress('Calculando heurística para parada…', '06 / 07', 74);
+        const hW = Pathfinder.dijkstraFromDest(graph, wpId);
+        startId  = Pathfinder.snapToReachableNode(locA.lat, locA.lon, graph.nodes, hW);
+        UI.progress('Ejecutando A* (con parada)…', '07 / 07', 82);
+        const pathAW = Pathfinder.aStar(graph, hW, startId, wpId);
+        const pathWB = Pathfinder.aStar(graph, h,  wpId,    destId);
+        if (!pathAW || !pathWB) throw new Error('A* no encontró ruta con la parada. Elimínala e inténtalo de nuevo.');
+        path = [...pathAW, ...pathWB.slice(1)];
+      } else {
+        UI.progress('Mapeando origen al grafo…', '05 / 06', 74);
+        startId = Pathfinder.snapToReachableNode(locA.lat, locA.lon, graph.nodes, h);
+        UI.progress('Ejecutando A*…', '06 / 06', 82);
+        path = Pathfinder.aStar(graph, h, startId, destId);
+        if (!path) throw new Error('A* no encontró ruta. Prueba con otras direcciones.');
+      }
 
       // ── Guardar info de snapping para debug ──────────────────
       this.snapInfo = {
@@ -1819,13 +2125,10 @@ const App = {
         destNode: graph.nodes[destId],
       };
 
-      // ── Guardar grafo para debug ────────────────────────────
-      this.graph = graph;
-
-      // ── 6. A* ───────────────────────────────────────────────
-      UI.progress('Ejecutando A*…', '06 / 06', 82);
-      const path = Pathfinder.aStar(graph, h, startId, destId);
-      if (!path) throw new Error('A* no encontró ruta. Prueba con otras direcciones.');
+      // ── Guardar grafo y ruta (para debug y re-fetch POIs) ───
+      this.graph     = graph;
+      this.lastPath  = path;
+      this.lastGraph = graph;
 
       const stats = Pathfinder.calcStats(path, graph);
 
@@ -1857,6 +2160,90 @@ const App = {
     }
   },
 
+  // ── POI: toggle dropdown ─────────────────────────────
+  togglePoiDropdown(id) {
+    const dd   = document.getElementById(`poi-dd-${id}`);
+    const item = dd?.previousElementSibling;
+    if (!dd) return;
+    const wasOpen = dd.classList.contains('open');
+    document.querySelectorAll('.poi-dropdown.open').forEach(el => el.classList.remove('open'));
+    document.querySelectorAll('.poi-item.expanded').forEach(el => el.classList.remove('expanded'));
+    if (!wasOpen) {
+      dd.classList.add('open');
+      item?.classList.add('expanded');
+      const p = this._poiMap?.[id];
+      if (p) MapRenderer.flyTo(p.lat, p.lon, 17);
+    }
+  },
+
+  // ── POI: añadir parada ───────────────────────────────
+  addWaypoint(id) {
+    const poi = this._poiMap?.[id];
+    if (!poi) return;
+    this.waypoint = { lat: poi.lat, lon: poi.lon, name: poi.name };
+    document.getElementById('waypointName').textContent = poi.name;
+    document.getElementById('waypointBar').classList.remove('hidden');
+    document.querySelectorAll('.poi-dropdown.open').forEach(el => el.classList.remove('open'));
+    document.querySelectorAll('.poi-item.expanded').forEach(el => el.classList.remove('expanded'));
+    UI.toast(`Parada añadida: ${poi.name}. Recalcula la ruta para incluirla.`, 'info', 4500);
+  },
+
+  removeWaypoint() {
+    this.waypoint = null;
+    document.getElementById('waypointBar').classList.add('hidden');
+  },
+
+  // ── POI: toggle filtro de categoría ──────────────────
+  togglePoiFilter(catId) {
+    if (this._poiActiveFilters.has(catId)) {
+      this._poiActiveFilters.delete(catId);
+    } else {
+      this._poiActiveFilters.add(catId);
+    }
+    UI._renderPoiFilters();
+    UI._renderPoiList();
+    MapRenderer.drawPOIs(this._visiblePois());
+  },
+
+  // ── POI: slider de radio ─────────────────────────────
+  onPoiRadiusSlider(value) {
+    const m    = parseInt(value);
+    const prev = CONFIG.POI.BUFFER_M;
+    const pct  = ((m - 50) / (600 - 50)) * 100;
+    CONFIG.POI.BUFFER_M   = m;
+    CONFIG.POI.BUFFER_DEG = m / 111000;
+    document.getElementById('poiRadiusSlider').style.setProperty('--poi-r-pct', pct.toFixed(1));
+    document.getElementById('poiRadiusVal').textContent = `${m}m`;
+
+    // Re-render siempre con el nuevo radio (filtro sobre allPois en caché)
+    UI._renderPoiList();
+    MapRenderer.drawPOIs(this._visiblePois());
+
+    // Solo re-fetch al aumentar (pueden existir POIs nuevos fuera del bbox anterior)
+    if (m > prev) {
+      clearTimeout(this._poiRefreshT);
+      this._poiRefreshT = setTimeout(() => this._refreshPOIs(), 700);
+    }
+  },
+
+  // ── POI: conjunto visible (radio + categoría) ────────
+  _visiblePois() {
+    const m = CONFIG.POI.BUFFER_M;
+    return (this.allPois || []).filter(p =>
+      p.distToRoute <= m && this._poiActiveFilters.has(p.def.cat)
+    );
+  },
+
+  // ── POI: re-fetch tras cambiar radio ─────────────────
+  async _refreshPOIs() {
+    if (!this.lastPath || !this.lastGraph) return;
+    try {
+      const pois = await POIFetcher.fetch(this.lastPath, this.lastGraph.nodes);
+      MapRenderer.drawPOIs(pois);
+      UI.renderPOIs(pois);
+    } catch (e) { console.warn('POI refresh:', e); }
+  },
+
   onPrefSlider(value) {
     const t = value / 100;
     CONFIG.COST.PENALTIES.main_road  = t * CONFIG.COST.SLIDER_MAX.main_road;
@@ -1868,6 +2255,11 @@ const App = {
 
   clearRoute() {
     this.stopMapPick();
+    this.removeWaypoint();
+    this.lastPath  = null;
+    this.lastGraph = null;
+    this.allPois   = [];
+    this._poiMap   = {};
     MapRenderer.clear();
     UI.resetResults();
     document.getElementById('inputA').value = '';
