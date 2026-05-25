@@ -400,48 +400,6 @@ input[type=range].pref-slider:hover::-webkit-slider-thumb {
 }
 
 /* Quality bar */
-.quality-wrap {
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 14px;
-}
-
-.quality-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.quality-pct {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--green);
-}
-
-.quality-track {
-  height: 5px;
-  background: var(--border);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.quality-fill {
-  height: 100%;
-  border-radius: 3px;
-  background: linear-gradient(90deg, var(--amber), var(--teal), var(--green));
-  transition: width .7s cubic-bezier(.4,0,.2,1);
-}
-
-.quality-hints {
-  display: flex;
-  justify-content: space-between;
-  font-size: 9.5px;
-  color: var(--muted);
-  margin-top: 6px;
-}
 
 /* ── POI Section ─────────────────────────────────────── */
 .poi-section {
@@ -953,19 +911,6 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
         <div class="divider" style="margin:0 0 18px"></div>
         <div class="section-label">Ruta calculada</div>
         <div class="stats-grid" id="statsGrid"></div>
-        <div class="quality-wrap">
-          <div class="quality-header">
-            <span class="section-label">Calidad peatonal</span>
-            <span class="quality-pct" id="qualityPct">–</span>
-          </div>
-          <div class="quality-track">
-            <div class="quality-fill" id="qualityFill" style="width:0%"></div>
-          </div>
-          <div class="quality-hints">
-            <span>Calzada convencional</span>
-            <span>Vía óptima ✓</span>
-          </div>
-        </div>
       </div>
 
       <!-- POIs -->
@@ -1589,17 +1534,15 @@ const Pathfinder = {
 
   // Estadísticas de la ruta calculada
   calcStats(path, graph) {
-    let dist = 0, friendlyDist = 0;
+    let dist = 0;
     for (let i = 0; i < path.length - 1; i++) {
       const e = (graph.edges[path[i]] ?? []).find(e => e.to === path[i+1]);
       if (!e) continue;
       dist += e.dist;
-      if (e.cost / e.dist < 1.15) friendlyDist += e.dist;   // penalización < 15%
     }
     return {
-      distM:      dist,
-      timeS:      dist / CONFIG.WALK_SPEED_MS,
-      qualityPct: dist > 0 ? (friendlyDist / dist) * 100 : 0,
+      distM: dist,
+      timeS: dist / CONFIG.WALK_SPEED_MS,
     };
   },
 };
@@ -1915,9 +1858,6 @@ const UI = {
         <div class="stat-lbl">Tiempo estimado</div>
       </div>
     `;
-    const q = Math.round(stats.qualityPct);
-    document.getElementById('qualityPct').textContent     = `${q}%`;
-    document.getElementById('qualityFill').style.width   = `${q}%`;
   },
 
   renderPOIs(pois) {
