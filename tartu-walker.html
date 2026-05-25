@@ -1864,13 +1864,11 @@ const UI = {
     const sec = document.getElementById('poiSection');
     if (!pois.length) { sec.classList.add('hidden'); return; }
     sec.classList.remove('hidden');
-    // Store on App for filter re-renders
-    App.allPois  = pois;
-    App._poiMap  = {};
+    App.allPois = pois;
+    App._poiMap = {};
     for (const p of pois) App._poiMap[p.id] = p;
-    document.getElementById('poiCount').textContent = pois.length;
     this._renderPoiFilters();
-    this._renderPoiList();
+    this._renderPoiList(); // sets poiCount to filtered count
   },
 
   _renderPoiFilters() {
@@ -2188,8 +2186,8 @@ const App = {
       // POIs (puede fallar sin romper el flujo principal)
       try {
         const pois = await POIFetcher.fetch(path, graph.nodes);
-        MapRenderer.drawPOIs(pois);
         UI.renderPOIs(pois);
+        MapRenderer.drawPOIs(App._visiblePois());
       } catch (e) { console.warn('POIs no disponibles:', e); }
 
       UI.overlay(false);
@@ -2286,8 +2284,8 @@ const App = {
     if (!this.lastPath || !this.lastGraph) return;
     try {
       const pois = await POIFetcher.fetch(this.lastPath, this.lastGraph.nodes);
-      MapRenderer.drawPOIs(pois);
       UI.renderPOIs(pois);
+      MapRenderer.drawPOIs(this._visiblePois());
     } catch (e) { console.warn('POI refresh:', e); }
   },
 
