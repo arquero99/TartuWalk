@@ -1071,6 +1071,7 @@ const CONFIG = {
       fast_tertiary:    0.40,   // tertiary sin sidewalk documentado
       non_pedestrian:   0.50,   // sin designación foot-friendly
       no_lighting:      0.15,   // lit = no
+      sidewalk:         0.25,   // footway = sidewalk (acera junto a carretera)
     },
 
     // Bonificaciones (delta < 0 → más barato → A* lo prefiere)
@@ -1080,6 +1081,8 @@ const CONFIG = {
       green_area:      -0.70,   // leisure/landuse = parque/bosque  (escalado por slider)
       good_surface:    -0.05,   // surface = paved|paving_stones
       lit:             -0.05,   // lit = yes
+      natural_path:    -0.15,   // highway = path (camino natural, no acera)
+      natural_surface: -0.10,   // surface = grass|dirt|ground|mud|earth|sand
     },
 
     // Valores máximos para el slider de preferencia peatonal
@@ -1321,10 +1324,14 @@ const GraphBuilder = {
       { d += P.non_pedestrian; applied.non_pedestrian = P.non_pedestrian; }
     if (lit === 'no')
       { d += P.no_lighting;    applied.no_lighting    = P.no_lighting; }
+    if (tags.footway === 'sidewalk')
+      { d += P.sidewalk;       applied.sidewalk       = P.sidewalk; }
 
     // ── Bonificaciones ───────────────────────────────────────
     if (/^(footway|path|pedestrian)$/.test(hw) && B.footway_path !== 0)
       { d += B.footway_path;   applied.footway_path   = B.footway_path; }
+    if (hw === 'path')
+      { d += B.natural_path;   applied.natural_path   = B.natural_path; }
     if (hw === 'living_street')
       { d += B.living_street;  applied.living_street  = B.living_street; }
     if ((/^(park|garden|nature_reserve|forest|grass|meadow|recreation_ground)$/.test(lei)
@@ -1333,6 +1340,8 @@ const GraphBuilder = {
       { d += B.green_area;     applied.green_area     = B.green_area; }
     if (/^(paved|paving_stones)$/.test(srf))
       { d += B.good_surface;   applied.good_surface   = B.good_surface; }
+    if (/^(grass|dirt|ground|mud|earth|sand)$/.test(srf))
+      { d += B.natural_surface; applied.natural_surface = B.natural_surface; }
     if (lit === 'yes')
       { d += B.lit;            applied.lit            = B.lit; }
 
