@@ -1083,6 +1083,7 @@ const CONFIG = {
       lit:             -0.05,   // lit = yes
       natural_path:    -0.15,   // highway = path (camino natural, no acera)
       natural_surface: -0.10,   // surface = grass|dirt|ground|mud|earth|sand
+      park_way:        -0.30,   // vía dentro de un área verde (Overpass espacial, escalado por slider)
     },
 
     // Valores máximos para el slider de preferencia peatonal
@@ -1090,6 +1091,7 @@ const CONFIG = {
       main_road:    0.80,
       footway_path: 0.20,
       green_area:   0.70,
+      park_way:     0.30,
     },
   },
 
@@ -1192,6 +1194,25 @@ const Cache = {
       });
     } catch (e) { console.warn('Cache.set error:', e); }
   },
+
+  // Borra entradas cuya clave empiece por `prefix` (vacío = todas)
+  async clear(prefix = '') {
+    try {
+      const db = await this._open();
+      await new Promise((ok, fail) => {
+        const tx    = db.transaction(CONFIG.CACHE.STORE, 'readwrite');
+        const store = tx.objectStore(CONFIG.CACHE.STORE);
+        const req   = store.openCursor();
+        req.onsuccess = e => {
+          const cur = e.target.result;
+          if (!cur) { ok(); return; }
+          if (!prefix || String(cur.key).startsWith(prefix)) cur.delete();
+          cur.continue();
+        };
+        req.onerror = e => fail(e.target.error);
+      });
+    } catch (e) { console.warn('Cache.clear error:', e); }
+  },
 };
 
 
@@ -1278,6 +1299,37 @@ out body;`);
 out body;`);
   },
 
+  // Geometría de polígonos de parques/áreas verdes (para visualización en debug)
+  async fetchParkAreas(bbox) {
+    const b = Utils.bboxStr(bbox);
+    return this._post(`
+[out:json][timeout:45];
+(
+  way["leisure"~"^(park|garden|nature_reserve)$"](${b});
+  way["landuse"~"^(forest|recreation_ground|grass|meadow)$"](${b});
+  relation["leisure"~"^(park|garden|nature_reserve)$"](${b});
+  relation["landuse"~"^(forest|recreation_ground|grass|meadow)$"](${b});
+);
+out geom;`);
+  },
+
+  // IDs de vías de tránsito que están dentro de áreas verdes
+  async fetchParkWayIds(bbox) {
+    const b = Utils.bboxStr(bbox);
+    const data = await this._post(`
+[out:json][timeout:30];
+(
+  way["leisure"~"^(park|garden|nature_reserve)$"](${b});
+  relation["leisure"~"^(park|garden|nature_reserve)$"](${b});
+  way["landuse"~"^(forest|recreation_ground|grass|meadow)$"](${b});
+  relation["landuse"~"^(forest|recreation_ground|grass|meadow)$"](${b});
+) -> .greens;
+.greens map_to_area -> .greenareas;
+way["highway"](area.greenareas)(${b});
+out ids;`);
+    return new Set(data.elements.filter(e => e.type === 'way').map(e => String(e.id)));
+  },
+
   // POIs a lo largo de la ruta
   async fetchPOIs(bbox) {
     const b = Utils.bboxStr(bbox);
@@ -1302,7 +1354,7 @@ out center ${lim};`);
 const GraphBuilder = {
   // Calcula multiplicador de coste (sistema aditivo con bonificaciones)
   // Devuelve { mult, applied, hw } para debug y construcción de aristas
-  _mult(tags) {
+  _mult(tags, inPark = false) {
     const hw  = tags.highway  || '';
     const ft  = tags.foot     || '';
     const srf = tags.surface  || '';
@@ -1342,6 +1394,8 @@ const GraphBuilder = {
       { d += B.good_surface;   applied.good_surface   = B.good_surface; }
     if (/^(grass|dirt|ground|mud|earth|sand)$/.test(srf))
       { d += B.natural_surface; applied.natural_surface = B.natural_surface; }
+    if (inPark && B.park_way !== 0)
+      { d += B.park_way;        applied.park_way        = B.park_way; }
     if (lit === 'yes')
       { d += B.lit;            applied.lit            = B.lit; }
 
@@ -1351,7 +1405,7 @@ const GraphBuilder = {
   },
 
   // Construye {nodes, edges} desde datos OSM crudos
-  build(osmData) {
+  build(osmData, parkWayIds = new Set()) {
     const nodes = {};   // id → {lat, lon}
     const edges = {};   // id → [{to, cost, dist}]   (bidireccional)
 
@@ -1363,9 +1417,10 @@ const GraphBuilder = {
     // Paso 2: construir aristas desde ways
     for (const el of osmData.elements) {
       if (el.type !== 'way') continue;
-      const tags = el.tags || {};
-      const nids = el.nodes;
-      const { mult, applied, hw } = this._mult(tags);
+      const tags   = el.tags || {};
+      const nids   = el.nodes;
+      const inPark = parkWayIds.has(String(el.id));
+      const { mult, applied, hw } = this._mult(tags, inPark);
 
       for (let i = 0; i < nids.length - 1; i++) {
         const aId = String(nids[i]);
@@ -2090,19 +2145,49 @@ const App = {
       UI.setBadge('badgeA', locA.lat, locA.lon);
       UI.setBadge('badgeB', locB.lat, locB.lon);
 
-      // ── 2. Descarga grafo detallado ─────────────────────────
+      // ── 2. Descarga grafo detallado + IDs de vías en parques ─
       UI.progress('Descargando grafo detallado del área…', '02 / 06', 25);
-      const bbox = Utils.buildBbox(locA.lat, locA.lon, locB.lat, locB.lon);
-      const ck   = `detail_${[bbox.S,bbox.W,bbox.N,bbox.E].map(v=>v.toFixed(3)).join('_')}`;
-      let osmData = await Cache.get(ck);
+      const bbox   = Utils.buildBbox(locA.lat, locA.lon, locB.lat, locB.lon);
+      const bboxId = [bbox.S,bbox.W,bbox.N,bbox.E].map(v=>v.toFixed(3)).join('_');
+      const ck     = `detail_${bboxId}`;
+      const pk     = `park_${bboxId}`;
+      const pgk    = `parkgeo_${bboxId}`;
+
+      let [osmData, parkWayIds, parkAreasGeo] = await Promise.all([
+        Cache.get(ck),
+        Cache.get(pk),
+        Cache.get(pgk),
+      ]);
+
       if (!osmData) {
         osmData = await Overpass.fetchDetailed(bbox);
         await Cache.set(ck, osmData, CONFIG.CACHE.TTL_DETAIL_MS);
       }
 
+      if (!parkWayIds) {
+        try {
+          parkWayIds = [...(await Overpass.fetchParkWayIds(bbox))];
+          await Cache.set(pk, parkWayIds, CONFIG.CACHE.TTL_DETAIL_MS);
+        } catch (e) {
+          console.warn('Park way IDs no disponibles:', e);
+          parkWayIds = [];
+        }
+      }
+
+      if (!parkAreasGeo) {
+        try {
+          parkAreasGeo = await Overpass.fetchParkAreas(bbox);
+          await Cache.set(pgk, parkAreasGeo, CONFIG.CACHE.TTL_DETAIL_MS);
+        } catch (e) {
+          console.warn('Park areas geometry no disponible:', e);
+          parkAreasGeo = null;
+        }
+      }
+      this.parkAreasGeo = parkAreasGeo;
+
       // ── 3. Grafo ponderado ──────────────────────────────────
       UI.progress('Construyendo grafo ponderado…', '03 / 06', 45);
-      const graph = GraphBuilder.build(osmData);
+      const graph = GraphBuilder.build(osmData, new Set(parkWayIds));
 
       if (!Object.keys(graph.nodes).length) {
         throw new Error('El área no contiene vías transitables. Amplía el radio de búsqueda.');
@@ -2271,6 +2356,7 @@ const App = {
     CONFIG.COST.PENALTIES.main_road  = t * CONFIG.COST.SLIDER_MAX.main_road;
     CONFIG.COST.BONUSES.footway_path = -(t * CONFIG.COST.SLIDER_MAX.footway_path);
     CONFIG.COST.BONUSES.green_area   = -(t * CONFIG.COST.SLIDER_MAX.green_area);
+    CONFIG.COST.BONUSES.park_way     = -(t * CONFIG.COST.SLIDER_MAX.park_way);
     const el = document.getElementById('prefSlider');
     if (el) el.style.setProperty('--pref-pct', value);
   },
@@ -2302,6 +2388,7 @@ const App = {
 const GraphDebug = {
   enabled: false,
   graphLayer: null,
+  parkLayer: null,
   selectedNode: null,
   stats: null,
 
@@ -2355,10 +2442,49 @@ const GraphDebug = {
   },
 
   /**
+   * Parsea OSM data de áreas verdes a [{coords, tags}] para Leaflet.
+   * Maneja ways cerrados y relaciones (outer members).
+   */
+  _parsePolygons(osmData) {
+    if (!osmData?.elements) return [];
+    const polys = [];
+    for (const el of osmData.elements) {
+      if (el.type === 'way' && el.geometry && el.geometry.length >= 3) {
+        polys.push({ coords: el.geometry.map(p => [p.lat, p.lon]), tags: el.tags || {} });
+      } else if (el.type === 'relation' && el.members) {
+        for (const m of el.members) {
+          if (m.role === 'outer' && m.geometry && m.geometry.length >= 3) {
+            polys.push({ coords: m.geometry.map(p => [p.lat, p.lon]), tags: el.tags || {} });
+          }
+        }
+      }
+    }
+    return polys;
+  },
+
+  /**
    * Dibuja el grafo en la capa de mapa
    */
-  drawGraph(graph) {
+  drawGraph(graph, parkPolygons = []) {
+    if (this.parkLayer) { MapRenderer.map.removeLayer(this.parkLayer); this.parkLayer = null; }
     if (this.graphLayer) MapRenderer.map.removeLayer(this.graphLayer);
+
+    // Polígonos de parques (capa inferior)
+    if (parkPolygons.length) {
+      const pg = L.featureGroup();
+      for (const { coords } of parkPolygons) {
+        L.polygon(coords, {
+          color: '#34D399',
+          weight: 2,
+          opacity: 0.9,
+          fillColor: '#34D399',
+          fillOpacity: 0.28,
+          interactive: false,
+        }).addTo(pg);
+      }
+      this.parkLayer = pg;
+      MapRenderer.map.addLayer(pg);
+    }
 
     const fg = L.featureGroup();
     const stats = this.computeStats(graph);
@@ -2579,7 +2705,26 @@ const GraphDebug = {
           <span style="color:#2DD4BF;">■</span> bonificado &nbsp;
           <span style="color:#8898AA;">■</span> neutro &nbsp;
           <span style="color:#FBBF24;">■</span> penalizado &nbsp;
-          <span style="color:#F87171;">■</span> muy penalizado
+          <span style="color:#F87171;">■</span> muy penalizado<br/>
+          <span style="color:#34D399;opacity:0.7;">▩</span> área verde bonificada (park_way)
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer;font-size:11px;color:${this.parkLayer ? '#34D399' : '#5A6A80'};">
+          <input type="checkbox" id="chkParkAreas" ${this.parkLayer ? 'checked' : 'disabled'}
+            onchange="GraphDebug.toggleParkAreas(this.checked)"
+            style="accent-color:#34D399;cursor:pointer;"/>
+          Mostrar áreas verdes${this.parkLayer ? '' : ' (sin datos)'}
+        </label>
+        <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
+          <button onclick="Cache.clear('parkgeo').then(()=>UI.toast('Caché de áreas borrada — recalcula la ruta','success'))"
+            style="flex:1;padding:4px 6px;background:#1A2030;border:1px solid #2E3A50;
+                   border-radius:4px;color:#FBBF24;font-size:10px;cursor:pointer;">
+            ↺ Caché áreas
+          </button>
+          <button onclick="Cache.clear().then(()=>UI.toast('Toda la caché borrada — recalcula la ruta','success'))"
+            style="flex:1;padding:4px 6px;background:#1A2030;border:1px solid #2E3A50;
+                   border-radius:4px;color:#F87171;font-size:10px;cursor:pointer;">
+            ↺ Caché total
+          </button>
         </div>
       </div>
     `;
@@ -2632,16 +2777,27 @@ const GraphDebug = {
 
     if (this.enabled) {
       UI.toast('🐛 DEBUG MODE ACTIVADO - Presiona D para desactivar', 'info', 3000);
-      this.drawGraph(graph);
+      const polys = this._parsePolygons(App.parkAreasGeo);
+      this.drawGraph(graph, polys);
     } else {
       if (this.graphLayer) {
         MapRenderer.map.removeLayer(this.graphLayer);
         this.graphLayer = null;
       }
+      if (this.parkLayer) {
+        MapRenderer.map.removeLayer(this.parkLayer);
+        this.parkLayer = null;
+      }
       const panel = document.getElementById('debugPanel');
       if (panel) panel.style.display = 'none';
       UI.toast('DEBUG MODE desactivado', 'info', 2000);
     }
+  },
+
+  toggleParkAreas(visible) {
+    if (!this.parkLayer) return;
+    if (visible) MapRenderer.map.addLayer(this.parkLayer);
+    else         MapRenderer.map.removeLayer(this.parkLayer);
   },
 };
 
