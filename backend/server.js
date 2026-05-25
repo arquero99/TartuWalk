@@ -111,6 +111,41 @@ app.get('/api/geocode', async (req, res) => {
   }
 });
 
+// ════════════════════════════════════════════════════════════════
+// NOMINATIM REVERSE GEOCODING PROXY
+// ════════════════════════════════════════════════════════════════
+app.get('/api/reverse', async (req, res) => {
+  try {
+    const { lat, lon } = req.query;
+    if (!lat || !lon) return res.status(400).json({ error: 'Missing lat/lon' });
+
+    const url = new URL('https://nominatim.openstreetmap.org/reverse');
+    url.searchParams.set('lat', lat);
+    url.searchParams.set('lon', lon);
+    url.searchParams.set('format', 'json');
+    url.searchParams.set('zoom', '18');
+    url.searchParams.set('addressdetails', '1');
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        'User-Agent': 'TartuWalk/1.0 (+https://github.com/yourusername/TartuWalk)',
+        'Accept-Language': 'es,en;q=0.9',
+      },
+      timeout: 30000,
+    });
+
+    if (!response.ok) {
+      return res.status(response.status).json({ error: `Nominatim error: ${response.status}` });
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Reverse geocoding proxy error:', error);
+    res.status(500).json({ error: 'Internal server error', message: error.message });
+  }
+});
+
 // Error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);

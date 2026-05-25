@@ -197,6 +197,28 @@ body {
 .btn-pin.pinned { color: var(--teal); }
 .btn-pin svg    { pointer-events: none; }
 
+.btn-map-pick {
+  flex-shrink: 0;
+  width: 36px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .2s, background .15s;
+  border-radius: 0;
+  padding: 0;
+}
+
+.btn-map-pick:hover   { color: var(--amber); background: rgba(251,191,36,.08); }
+.btn-map-pick.picking { color: var(--amber); background: rgba(251,191,36,.15); animation: pulse 1.2s infinite; }
+.btn-map-pick svg     { pointer-events: none; }
+
+.leaflet-container.picking-mode { cursor: crosshair !important; }
+
 .geocoded-badge {
   font-family: var(--font-mono);
   font-size: 9.5px;
@@ -586,6 +608,15 @@ body {
             <input type="text" id="inputA"
               placeholder="Ej: Ülikooli 18"
               onkeydown="if(event.key==='Enter')App.calculateRoute()" />
+            <button class="btn-map-pick" id="btnPickA" onclick="App.startMapPick('A')" title="Clic en el mapa para fijar inicio">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="4"/>
+                <line x1="12" y1="2" x2="12" y2="7"/>
+                <line x1="12" y1="17" x2="12" y2="22"/>
+                <line x1="2" y1="12" x2="7" y2="12"/>
+                <line x1="17" y1="12" x2="22" y2="12"/>
+              </svg>
+            </button>
             <button class="btn-pin" id="btnPinA" onclick="App.previewLocation('A')" title="Mostrar inicio en mapa">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
@@ -604,6 +635,15 @@ body {
             <input type="text" id="inputB"
               placeholder="Ej: Riia 2"
               onkeydown="if(event.key==='Enter')App.calculateRoute()" />
+            <button class="btn-map-pick" id="btnPickB" onclick="App.startMapPick('B')" title="Clic en el mapa para fijar destino">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="4"/>
+                <line x1="12" y1="2" x2="12" y2="7"/>
+                <line x1="12" y1="17" x2="12" y2="22"/>
+                <line x1="2" y1="12" x2="7" y2="12"/>
+                <line x1="17" y1="12" x2="22" y2="12"/>
+              </svg>
+            </button>
             <button class="btn-pin" id="btnPinB" onclick="App.previewLocation('B')" title="Mostrar destino en mapa">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
@@ -751,6 +791,7 @@ const CONFIG = {
   APIS: {
     OVERPASS:  '/api/overpass',
     NOMINATIM: '/api/geocode',
+    REVERSE:   '/api/reverse',
   },
 
   // URL del backend (localhost en desarrollo, mismo origen en producción)
@@ -865,6 +906,28 @@ const Geocoder = {
     if (!data.length) throw new Error(`Dirección no encontrada: "${address}"`);
     const r = data[0];
     return { lat: parseFloat(r.lat), lon: parseFloat(r.lon), display: r.display_name };
+  },
+
+  async reverseGeocode(lat, lon) {
+    const query = new URLSearchParams({ lat, lon });
+    const url   = `${CONFIG.BACKEND_URL}${CONFIG.APIS.REVERSE}?${query}`;
+    const resp  = await fetch(url);
+    if (!resp.ok) throw new Error(`Reverse geocoding HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (data.error) throw new Error('No se encontró dirección en ese punto');
+
+    // Construye dirección corta legible
+    const a     = data.address || {};
+    const road  = a.road || a.pedestrian || a.path || a.footway || '';
+    const num   = a.house_number || '';
+    const short = [road, num].filter(Boolean).join(' ') || data.display_name.split(',')[0];
+
+    return {
+      lat:          parseFloat(data.lat),
+      lon:          parseFloat(data.lon),
+      display:      data.display_name,
+      shortAddress: short,
+    };
   },
 };
 
@@ -1509,6 +1572,68 @@ const App = {
     }
   },
 
+  _pickMode:        null,
+  _mapClickHandler: null,
+
+  startMapPick(which) {
+    // Segundo clic en el mismo botón cancela el modo
+    if (this._pickMode === which) { this.stopMapPick(); return; }
+    this.stopMapPick();
+
+    this._pickMode = which;
+    document.getElementById(`btnPick${which}`).classList.add('picking');
+    MapRenderer.map.getContainer().classList.add('picking-mode');
+    UI.toast(`Haz clic en el mapa para fijar el ${which === 'A' ? 'inicio' : 'destino'}`, 'info', 5000);
+
+    this._mapClickHandler = (e) => this._onMapPick(e, which);
+    MapRenderer.map.once('click', this._mapClickHandler);
+  },
+
+  stopMapPick() {
+    if (!this._pickMode) return;
+    const btn = document.getElementById(`btnPick${this._pickMode}`);
+    if (btn) btn.classList.remove('picking');
+    MapRenderer.map.getContainer().classList.remove('picking-mode');
+    if (this._mapClickHandler) {
+      MapRenderer.map.off('click', this._mapClickHandler);
+      this._mapClickHandler = null;
+    }
+    this._pickMode = null;
+  },
+
+  async _onMapPick(e, which) {
+    this.stopMapPick();
+    const { lat, lng } = e.latlng;
+    const btn = document.getElementById(`btnPick${which}`);
+    if (btn) btn.disabled = true;
+
+    try {
+      const rev  = await Geocoder.reverseGeocode(lat, lng);
+      const addr = rev.shortAddress;
+
+      document.getElementById(`input${which}`).value = addr;
+      UI.setBadge(`badge${which}`, rev.lat, rev.lon);
+
+      // Snap al nodo conexo más cercano
+      let pinLat = rev.lat, pinLon = rev.lon;
+      if (this.graph?.nodes && this.graph?.edges) {
+        try {
+          const nodeId = Pathfinder.snapToNode(rev.lat, rev.lon, this.graph.nodes, this.graph.edges);
+          const node   = this.graph.nodes[nodeId];
+          if (node) { pinLat = node.lat; pinLon = node.lon; }
+        } catch (_) {}
+      }
+
+      MapRenderer.setPreviewPin(which, { lat: pinLat, lon: pinLon, display: rev.display });
+      const pinBtn = document.getElementById(`btnPin${which}`);
+      if (pinBtn) pinBtn.classList.add('pinned');
+    } catch (err) {
+      UI.toast(err.message || 'No se pudo obtener la dirección.', 'error', 5000);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  },
+
   async previewLocation(which) {
     const address = document.getElementById(`input${which}`).value.trim();
     if (!address) { UI.toast('Escribe una dirección primero.', 'error'); return; }
@@ -1638,13 +1763,14 @@ const App = {
   },
 
   clearRoute() {
+    this.stopMapPick();
     MapRenderer.clear();
     UI.resetResults();
     document.getElementById('inputA').value = '';
     document.getElementById('inputB').value = '';
-    ['btnPinA', 'btnPinB'].forEach(id => {
+    ['btnPinA', 'btnPinB', 'btnPickA', 'btnPickB'].forEach(id => {
       const b = document.getElementById(id);
-      if (b) b.classList.remove('pinned');
+      if (b) { b.classList.remove('pinned', 'picking'); b.disabled = false; }
     });
     MapRenderer.map.setView(CONFIG.MAP.CENTER, CONFIG.MAP.ZOOM);
   },
