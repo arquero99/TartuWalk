@@ -737,7 +737,7 @@ input[type=range].pref-slider:hover::-webkit-slider-thumb {
         </div>
         <div class="pref-slider-labels">
           <span>Ruta más corta</span>
-          <span>Máx. peatonal</span>
+          <span>Ruta verde</span>
         </div>
         <input type="range" class="pref-slider" id="prefSlider"
           min="0" max="100" value="100"
@@ -872,7 +872,7 @@ const CONFIG = {
     BONUSES: {
       footway_path:    -0.20,   // highway = footway|path|pedestrian  (escalado por slider)
       living_street:   -0.15,   // highway = living_street
-      green_area:      -0.10,   // leisure/landuse = parque/bosque
+      green_area:      -0.70,   // leisure/landuse = parque/bosque  (escalado por slider)
       good_surface:    -0.05,   // surface = paved|paving_stones
       lit:             -0.05,   // lit = yes
     },
@@ -881,6 +881,7 @@ const CONFIG = {
     SLIDER_MAX: {
       main_road:    0.80,
       footway_path: 0.20,
+      green_area:   0.70,
     },
   },
 
@@ -1860,7 +1861,9 @@ const App = {
     const t = value / 100;
     CONFIG.COST.PENALTIES.main_road  = t * CONFIG.COST.SLIDER_MAX.main_road;
     CONFIG.COST.BONUSES.footway_path = -(t * CONFIG.COST.SLIDER_MAX.footway_path);
-    document.getElementById('prefSlider').style.setProperty('--pref-pct', value);
+    CONFIG.COST.BONUSES.green_area   = -(t * CONFIG.COST.SLIDER_MAX.green_area);
+    const el = document.getElementById('prefSlider');
+    if (el) el.style.setProperty('--pref-pct', value);
   },
 
   clearRoute() {
@@ -2189,6 +2192,7 @@ const GraphDebug = {
 // ── Arranque ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   App.init();
+  App.onPrefSlider(document.getElementById('prefSlider').value);
   
   // Tecla D para activar debug
   document.addEventListener('keydown', (e) => {
