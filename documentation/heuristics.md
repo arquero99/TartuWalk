@@ -26,7 +26,7 @@ $$h_{\text{geo}}(n) = d_{\text{haversine}}(n, t)$$
 
 En lugar de una estimación geométrica, ejecutamos **Dijkstra una vez desde $t$ sobre el mismo grafo ponderado** antes de lanzar A*. El resultado es un vector de distancias exactas:
 
-$$h(n) = \text{dist\_desde\_}t[n]$$
+$$h(n) = \text{dist}_t[n]$$
 
 Esto no es una estimación: es el **coste real óptimo** de $n$ hasta $t$, calculado con la misma función de coste $c$ que usará A*. La heurística es perfecta por construcción.
 
