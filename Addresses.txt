@@ -1,0 +1,3 @@
+National Museum: Muuseumi tee 2, 60532 Tartu
+Tartu Mobile: J. Liivi tn 2, 50409 Tartu
+Hotel: Access to fetch at 'https://overpass-api.de/api/interpreter' from origin 'null' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
