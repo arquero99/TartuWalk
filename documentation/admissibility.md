@@ -21,7 +21,7 @@ Los deltas $\delta_i$ pueden ser positivos (penalizaciones) o negativos (bonific
 
 Dado un nodo origen $s$ y un nodo destino $t$, el **coste real óptimo** $h^*(n)$ de un nodo $n$ hacia $t$ se define como:
 
-$$h^*(n) = \min_{\pi: n \rightsquigarrow t} \sum_{(u,v) \in \pi} c(u,v)$$
+$$h^{*}(n) = \min_{\pi: n \rightsquigarrow t} \sum_{(u,v) \in \pi} c(u,v)$$
 
 donde el mínimo se toma sobre todos los caminos $\pi$ en $G$ desde $n$ hasta $t$.
 
@@ -51,7 +51,7 @@ El resultado es que $h(n) = \text{dist}[n]$ para todo $n \in V$.
 
 **Teorema.** La heurística $h$ es admisible, es decir:
 
-$$\forall n \in V: \quad h(n) \leq h^*(n)$$
+$$\forall n \in V: \quad h(n) \leq h^{*}(n)$$
 
 **Demostración.**
 
@@ -59,11 +59,11 @@ Por la correctitud del algoritmo de Dijkstra sobre grafos con costes de arista e
 
 Formalmente, Dijkstra computa el camino de coste mínimo en el mismo grafo $G$ con la misma función de coste $c$. Por tanto:
 
-$$h(n) = \text{dist}[n] = \min_{\pi: n \rightsquigarrow t} \sum_{(u,v) \in \pi} c(u,v) = h^*(n)$$
+$$h(n) = \text{dist}[n] = \min_{\pi: n \rightsquigarrow t} \sum_{(u,v) \in \pi} c(u,v) = h^{*}(n)$$
 
 La desigualdad de admisibilidad se satisface con **igualdad**:
 
-$$h(n) = h^*(n) \leq h^*(n) \quad \checkmark$$
+$$h(n) = h^{*}(n) \leq h^{*}(n) \quad \checkmark$$
 
 $\blacksquare$
 
@@ -77,11 +77,11 @@ $$h(u) \leq c(u, v) + h(v)$$
 
 **Demostración.**
 
-Dado que $h(u) = h^*(u)$ es el coste mínimo de $u$ a $t$, y el camino óptimo puede pasar por $v$:
+Dado que $h(u) = h^{*}(u)$ es el coste mínimo de $u$ a $t$, y el camino óptimo puede pasar por $v$:
 
-$$h^*(u) \leq c(u, v) + h^*(v)$$
+$$h^{*}(u) \leq c(u, v) + h^{*}(v)$$
 
-Sustituyendo $h = h^*$:
+Sustituyendo $h = h^{*}$:
 
 $$h(u) \leq c(u, v) + h(v) \quad \checkmark$$
 
@@ -93,11 +93,11 @@ La desigualdad triangular del coste óptimo garantiza la consistencia directamen
 
 Un error conceptual frecuente es asumir que las bonificaciones (multiplicadores $\mu < 1$) violan la admisibilidad. Esto solo sería cierto si la heurística fuera la **distancia geométrica** (euclídea o haversine), porque en ese caso:
 
-$$h_{\text{euclid}}(n) = d(n, t) > c^*(n \rightsquigarrow t) \quad \text{si } \mu < 1 \text{ en el camino óptimo}$$
+$$h_{\text{euclid}}(n) = d(n, t) > c^{*}(n \rightsquigarrow t) \quad \text{si } \mu < 1 \text{ en el camino óptimo}$$
 
 lo que produciría una sobreestimación.
 
-Sin embargo, la heurística aquí utilizada no es la distancia geométrica: es el resultado de **Dijkstra sobre el mismo espacio de coste** en el que opera A*. Por tanto, el "coste real" $h^*$ y la heurística $h$ están definidos en el mismo espacio métrico ponderado, y la igualdad $h(n) = h^*(n)$ se mantiene independientemente de si los multiplicadores son mayores o menores que 1.
+Sin embargo, la heurística aquí utilizada no es la distancia geométrica: es el resultado de **Dijkstra sobre el mismo espacio de coste** en el que opera A*. Por tanto, el "coste real" $h^{*}$ y la heurística $h$ están definidos en el mismo espacio métrico ponderado, y la igualdad $h(n) = h^{*}(n)$ se mantiene independientemente de si los multiplicadores son mayores o menores que 1.
 
 En resumen:
 
