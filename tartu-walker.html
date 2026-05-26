@@ -1796,7 +1796,8 @@ const MapRenderer = {
                    padding:6px 10px;border-radius:6px;font-size:11.5px;cursor:pointer;text-align:left;width:100%;">
             📍 Añadir parada
           </button>
-          <button onclick="App.openSaberMas(${JSON.stringify(poi.name)})"
+          <button onclick="App.openSaberMas(this.dataset.n)"
+            data-n="${(poi.name||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"
             style="background:rgba(88,152,255,.1);border:1px solid rgba(88,152,255,.3);color:#58bfff;
                    padding:6px 10px;border-radius:6px;font-size:11.5px;cursor:pointer;text-align:left;width:100%;">
             🔍 Saber más
@@ -1932,7 +1933,8 @@ const UI = {
           <div class="poi-dropdown" id="poi-dd-${p.id}">
             <button class="poi-dd-btn" onclick="event.stopPropagation();MapRenderer.flyTo(${p.lat},${p.lon})">🗺️ Ver en mapa</button>
             <button class="poi-dd-btn" onclick="event.stopPropagation();App.addWaypoint(${p.id})">📍 Añadir parada</button>
-            <button class="poi-dd-btn" onclick="event.stopPropagation();App.openSaberMas(${JSON.stringify(p.name)})">🔍 Saber más</button>
+            <button class="poi-dd-btn" onclick="event.stopPropagation();App.openSaberMas(this.dataset.n)"
+              data-n="${(p.name||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}">🔍 Saber más</button>
           </div>`;
       }
     }
