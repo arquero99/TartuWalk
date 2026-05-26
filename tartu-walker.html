@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tartu Walker — Rutas Peatonales</title>
+<title>Tartu Walker — Pedestrian Routes</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%230B0F16' stroke='%232DD4BF' stroke-width='3'/><path d='M50 20 L65 50 L50 75 L35 50 Z' fill='%232DD4BF'/></svg>" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -852,7 +852,7 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
     <div class="brand">
       <div class="brand-eyebrow">Tartu · Estonia · 58.38°N</div>
       <h1>Tartu <em>Walker</em></h1>
-      <div class="brand-sub">Optimizador de rutas peatonales · OpenStreetMap</div>
+      <div class="brand-sub">Pedestrian route optimizer · OpenStreetMap</div>
     </div>
 
     <div id="sidebar-scroll">
@@ -860,13 +860,13 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
         <div class="input-group">
           <div class="input-label">
             <span class="label-dot start"></span>
-            Origen
+            Origin
           </div>
           <div class="input-field-wrap">
             <input type="text" id="inputA"
-              placeholder="Ej: Ülikooli 18"
+              placeholder="e.g. Ülikooli 18"
               onkeydown="if(event.key==='Enter')App.calculateRoute()" />
-            <button class="btn-map-pick" id="btnPickA" onclick="App.startMapPick('A')" title="Clic en el mapa para fijar inicio">
+            <button class="btn-map-pick" id="btnPickA" onclick="App.startMapPick('A')" title="Click on the map to set start">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="4"/>
                 <line x1="12" y1="2" x2="12" y2="7"/>
@@ -875,7 +875,7 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
                 <line x1="17" y1="12" x2="22" y2="12"/>
               </svg>
             </button>
-            <button class="btn-pin" id="btnPinA" onclick="App.previewLocation('A')" title="Mostrar inicio en mapa">
+            <button class="btn-pin" id="btnPinA" onclick="App.previewLocation('A')" title="Show start on map">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
               </svg>
@@ -887,13 +887,13 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
         <div class="input-group">
           <div class="input-label">
             <span class="label-dot end"></span>
-            Destino
+            Destination
           </div>
           <div class="input-field-wrap">
             <input type="text" id="inputB"
-              placeholder="Ej: Riia 2"
+              placeholder="e.g. Riia 2"
               onkeydown="if(event.key==='Enter')App.calculateRoute()" />
-            <button class="btn-map-pick" id="btnPickB" onclick="App.startMapPick('B')" title="Clic en el mapa para fijar destino">
+            <button class="btn-map-pick" id="btnPickB" onclick="App.startMapPick('B')" title="Click on the map to set destination">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="4"/>
                 <line x1="12" y1="2" x2="12" y2="7"/>
@@ -902,7 +902,7 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
                 <line x1="17" y1="12" x2="22" y2="12"/>
               </svg>
             </button>
-            <button class="btn-pin" id="btnPinB" onclick="App.previewLocation('B')" title="Mostrar destino en mapa">
+            <button class="btn-pin" id="btnPinB" onclick="App.previewLocation('B')" title="Show destination on map">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
               </svg>
@@ -916,10 +916,10 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
       <div class="waypoint-bar hidden" id="waypointBar">
         <span class="waypoint-icon">📍</span>
         <div class="waypoint-info">
-          <div class="waypoint-label">Parada</div>
+          <div class="waypoint-label">Stop</div>
           <div class="waypoint-name" id="waypointName">–</div>
         </div>
-        <button class="waypoint-remove" onclick="App.removeWaypoint()" title="Eliminar parada">✕</button>
+        <button class="waypoint-remove" onclick="App.removeWaypoint()" title="Remove stop">✕</button>
       </div>
 
       <div class="pref-slider-section">
@@ -928,11 +928,11 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
             <circle cx="12" cy="12" r="3"/><line x1="3" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="21" y2="12"/>
             <line x1="12" y1="3" x2="12" y2="9"/><line x1="12" y1="15" x2="12" y2="21"/>
           </svg>
-          Preferencia peatonal
+          Walking preference
         </div>
         <div class="pref-slider-labels">
-          <span>Ruta más corta</span>
-          <span>Ruta verde</span>
+          <span>Shortest route</span>
+          <span>Green route</span>
         </div>
         <input type="range" class="pref-slider" id="prefSlider"
           min="0" max="100" value="100"
@@ -942,16 +942,16 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
 
       <div class="btn-row">
         <button class="btn-calc" id="btnCalc" onclick="App.calculateRoute()">
-          <span>Calcular Ruta</span>
+          <span>Calculate Route</span>
           <span>→</span>
         </button>
-        <button class="btn-clear" id="btnClear" onclick="App.clearRoute()" title="Limpiar ruta">✕</button>
+        <button class="btn-clear" id="btnClear" onclick="App.clearRoute()" title="Clear route">✕</button>
       </div>
 
       <!-- Route stats -->
       <div id="routeInfo" class="route-info hidden">
         <div class="divider" style="margin:0 0 18px"></div>
-        <div class="section-label">Ruta calculada</div>
+        <div class="section-label">Calculated route</div>
         <div class="stats-grid" id="statsGrid"></div>
       </div>
 
@@ -959,11 +959,11 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
       <div id="poiSection" class="poi-section hidden">
         <div class="divider" style="margin:0 0 18px; margin-left:-20px; margin-right:-20px;"></div>
         <div class="poi-header">
-          <span class="section-label">Puntos de interés</span>
+          <span class="section-label">Points of interest</span>
           <span class="poi-count" id="poiCount">0</span>
         </div>
         <div class="poi-radius-row">
-          <span style="font-size:9.5px;color:var(--muted2);white-space:nowrap;letter-spacing:.4px;">Radio</span>
+          <span style="font-size:9.5px;color:var(--muted2);white-space:nowrap;letter-spacing:.4px;">Radius</span>
           <input type="range" class="poi-radius-slider" id="poiRadiusSlider"
             min="50" max="600" value="150"
             style="--poi-r-pct:18"
@@ -977,8 +977,8 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
       <!-- Air Quality -->
       <div class="aq-section">
         <div class="aq-header">
-          <span class="section-label">Calidad del Aire</span>
-          <span class="aq-status" id="aqStatusText">Cargando…</span>
+          <span class="section-label">Air Quality</span>
+          <span class="aq-status" id="aqStatusText">Loading…</span>
         </div>
         <div class="aq-rows">
           <label class="aq-row">
@@ -1001,24 +1001,24 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
           </label>
         </div>
         <div class="aq-legend">
-          <span><span style="color:#34D399;">■</span> Bueno</span>
-          <span><span style="color:#FBBF24;">■</span> Moderado</span>
-          <span><span style="color:#F97316;">■</span> Elevado</span>
-          <span><span style="color:#EF4444;">■</span> Alto</span>
-          <span><span style="color:#A855F7;">■</span> Muy alto</span>
+          <span><span style="color:#34D399;">■</span> Good</span>
+          <span><span style="color:#FBBF24;">■</span> Moderate</span>
+          <span><span style="color:#F97316;">■</span> High</span>
+          <span><span style="color:#EF4444;">■</span> Very high</span>
+          <span><span style="color:#A855F7;">■</span> Extreme</span>
         </div>
       </div>
 
       <!-- Debug Panel -->
       <div id="debugPanel" style="display:none; margin: 18px 20px 0; padding: 12px;">
-        <div style="font-size:11px; color:#8898AA;">Presiona D para activar debug del grafo</div>
+        <div style="font-size:11px; color:#8898AA;">Press D to activate graph debug</div>
       </div>
     </div>
 
     <!-- Cache status footer -->
     <div class="cache-status">
       <div class="cache-indicator loading" id="cacheIndicator"></div>
-      <span class="cache-text" id="cacheText">Iniciando grafo de Tartu…</span>
+      <span class="cache-text" id="cacheText">Initialising Tartu graph…</span>
     </div>
   </aside>
 
@@ -1031,7 +1031,7 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
   <div class="overlay-box">
     <div class="spinner"></div>
     <div class="overlay-step" id="overlayStep">01 / 06</div>
-    <div class="overlay-msg" id="overlayMsg">Inicializando…</div>
+    <div class="overlay-msg" id="overlayMsg">Initialising…</div>
     <div class="progress-track">
       <div class="progress-fill" id="progressFill" style="width:0%"></div>
     </div>
@@ -1263,7 +1263,7 @@ const Geocoder = {
       const resp  = await fetch(url);
       if (!resp.ok) throw new Error(`Geocoding HTTP ${resp.status}`);
       const data = await resp.json();
-      if (!data.length) throw new Error(`Dirección no encontrada: "${address}"`);
+      if (!data.length) throw new Error(`Address not found: "${address}"`);
       const r = data[0];
       return { lat: parseFloat(r.lat), lon: parseFloat(r.lon), display: r.display_name };
     }, 3, 2000);
@@ -1276,7 +1276,7 @@ const Geocoder = {
       const resp  = await fetch(url);
       if (!resp.ok) throw new Error(`Reverse geocoding HTTP ${resp.status}`);
       const data = await resp.json();
-      if (data.error) throw new Error('No se encontró dirección en ese punto');
+      if (data.error) throw new Error('No address found at this point');
 
       const a     = data.address || {};
       const road  = a.road || a.pedestrian || a.path || a.footway || '';
@@ -1600,8 +1600,8 @@ const Pathfinder = {
     }
     if (!nearId || minD > CONFIG.NODE_SNAP_RADIUS) {
       throw new Error(
-        `Sin vía transiteable a ${CONFIG.NODE_SNAP_RADIUS} m de la dirección. ` +
-        `Prueba con una calle más concurrida.`
+        `No walkable path within ${CONFIG.NODE_SNAP_RADIUS} m of the address. ` +
+        `Try a busier street.`
       );
     }
     return nearId;
@@ -1618,8 +1618,8 @@ const Pathfinder = {
     }
     if (!nearId || minD > CONFIG.NODE_SNAP_RADIUS) {
       throw new Error(
-        `No hay red peatonal conectada al destino a ${CONFIG.NODE_SNAP_RADIUS} m del origen. ` +
-        `Prueba una dirección más próxima a una calle transitada.`
+        `No pedestrian network connected to the destination within ${CONFIG.NODE_SNAP_RADIUS} m of the origin. ` +
+        `Try an address closer to a busy street.`
       );
     }
     return nearId;
@@ -1647,35 +1647,35 @@ const Pathfinder = {
 const POIFetcher = {
 
   CATS: [
-    { id: 'naturaleza', label: 'Verde',    icon: '🌿', col: '#34D399' },
-    { id: 'cultura',    label: 'Cultura',  icon: '🏛️', col: '#BC8CFF' },
-    { id: 'servicios',  label: 'Servicios',icon: '🪑', col: '#8898AA' },
-    { id: 'ocio',       label: 'Ocio',     icon: '☕', col: '#FBBF24' },
+    { id: 'naturaleza', label: 'Nature',   icon: '🌿', col: '#34D399' },
+    { id: 'cultura',    label: 'Culture',  icon: '🏛️', col: '#BC8CFF' },
+    { id: 'servicios',  label: 'Services', icon: '🪑', col: '#8898AA' },
+    { id: 'ocio',       label: 'Leisure',  icon: '☕', col: '#FBBF24' },
   ],
 
   DEFS: [
-    { tag:'amenity', vals:['drinking_water'],      cat:'servicios',  icon:'💧', lbl:'Agua potable',   col:'#58bfff' },
-    { tag:'amenity', vals:['fountain'],             cat:'servicios',  icon:'⛲', lbl:'Fuente',         col:'#58bfff' },
-    { tag:'amenity', vals:['bench'],                cat:'servicios',  icon:'🪑', lbl:'Banco',          col:'#8898AA' },
-    { tag:'amenity', vals:['toilets'],              cat:'servicios',  icon:'🚻', lbl:'Aseos',          col:'#8898AA' },
-    { tag:'amenity', vals:['cafe','restaurant'],    cat:'ocio',       icon:'☕', lbl:'Cafetería',      col:'#FBBF24' },
-    { tag:'amenity', vals:['pharmacy'],             cat:'servicios',  icon:'💊', lbl:'Farmacia',       col:'#34D399' },
-    { tag:'historic',vals:['monument','memorial','statue','ruins'], cat:'cultura', icon:'🗿', lbl:'Monumento', col:'#BC8CFF' },
-    { tag:'tourism', vals:['viewpoint'],            cat:'cultura',    icon:'🔭', lbl:'Mirador',        col:'#FFA657' },
-    { tag:'tourism', vals:['artwork'],              cat:'cultura',    icon:'🎨', lbl:'Arte',           col:'#FFA657' },
-    { tag:'tourism', vals:['museum'],               cat:'cultura',    icon:'🏛️', lbl:'Museo',          col:'#FFA657' },
-    { tag:'tourism', vals:['information'],          cat:'cultura',    icon:'ℹ️', lbl:'Información',    col:'#FFA657' },
-    { tag:'leisure', vals:['pitch'],                cat:'naturaleza', icon:'⚽', lbl:'Campo deportivo',col:'#34D399' },
-    { tag:'leisure', vals:['playground'],           cat:'naturaleza', icon:'🛝', lbl:'Parque infantil',col:'#34D399' },
-    { tag:'leisure', vals:['fitness_station'],      cat:'naturaleza', icon:'🏋️', lbl:'Gym exterior',   col:'#34D399' },
-    { tag:'leisure', vals:['park','garden','nature_reserve'], cat:'naturaleza', icon:'🌳', lbl:'Zona verde', col:'#34D399' },
+    { tag:'amenity', vals:['drinking_water'],      cat:'servicios',  icon:'💧', lbl:'Drinking water',  col:'#58bfff' },
+    { tag:'amenity', vals:['fountain'],             cat:'servicios',  icon:'⛲', lbl:'Fountain',         col:'#58bfff' },
+    { tag:'amenity', vals:['bench'],                cat:'servicios',  icon:'🪑', lbl:'Bench',            col:'#8898AA' },
+    { tag:'amenity', vals:['toilets'],              cat:'servicios',  icon:'🚻', lbl:'Restrooms',        col:'#8898AA' },
+    { tag:'amenity', vals:['cafe','restaurant'],    cat:'ocio',       icon:'☕', lbl:'Café',             col:'#FBBF24' },
+    { tag:'amenity', vals:['pharmacy'],             cat:'servicios',  icon:'💊', lbl:'Pharmacy',         col:'#34D399' },
+    { tag:'historic',vals:['monument','memorial','statue','ruins'], cat:'cultura', icon:'🗿', lbl:'Monument', col:'#BC8CFF' },
+    { tag:'tourism', vals:['viewpoint'],            cat:'cultura',    icon:'🔭', lbl:'Viewpoint',        col:'#FFA657' },
+    { tag:'tourism', vals:['artwork'],              cat:'cultura',    icon:'🎨', lbl:'Artwork',          col:'#FFA657' },
+    { tag:'tourism', vals:['museum'],               cat:'cultura',    icon:'🏛️', lbl:'Museum',           col:'#FFA657' },
+    { tag:'tourism', vals:['information'],          cat:'cultura',    icon:'ℹ️', lbl:'Information',      col:'#FFA657' },
+    { tag:'leisure', vals:['pitch'],                cat:'naturaleza', icon:'⚽', lbl:'Sports field',     col:'#34D399' },
+    { tag:'leisure', vals:['playground'],           cat:'naturaleza', icon:'🛝', lbl:'Playground',       col:'#34D399' },
+    { tag:'leisure', vals:['fitness_station'],      cat:'naturaleza', icon:'🏋️', lbl:'Outdoor gym',      col:'#34D399' },
+    { tag:'leisure', vals:['park','garden','nature_reserve'], cat:'naturaleza', icon:'🌳', lbl:'Green area', col:'#34D399' },
   ],
 
   classify(tags) {
     for (const d of this.DEFS) {
       if (tags[d.tag] && d.vals.includes(tags[d.tag])) return d;
     }
-    return { icon:'📌', lbl:'Punto de interés', col:'#8898AA', cat:'servicios' };
+    return { icon:'📌', lbl:'Point of interest', col:'#8898AA', cat:'servicios' };
   },
 
   async fetch(path, nodes) {
@@ -1775,7 +1775,7 @@ const MapRenderer = {
 
     const icon = this._divIcon(isA ? '🚶' : '🏁', isA ? '#1A9C8E' : '#D9534F', 48);
     const pin  = L.marker([loc.lat, loc.lon], { icon })
-      .bindPopup(`<b>${isA ? 'Inicio' : 'Destino'}</b><br><small>${loc.display}</small>`)
+      .bindPopup(`<b>${isA ? 'Start' : 'Destination'}</b><br><small>${loc.display}</small>`)
       .addTo(this.previewLayer);
 
     if (isA) this._pinA = pin; else this._pinB = pin;
@@ -1805,14 +1805,14 @@ const MapRenderer = {
         opacity: 1,
         fillOpacity: 0.9,
       })
-      .bindPopup(`<b>Inicio Geocoded</b><br>${Utils.fmtCoord(snapInfo.locA.lat, snapInfo.locA.lon)}`, { closeButton: false })
+      .bindPopup(`<b>Start Geocoded</b><br>${Utils.fmtCoord(snapInfo.locA.lat, snapInfo.locA.lon)}`, { closeButton: false })
       .addTo(this.routeLayer);
 
       // Nodo snapped de inicio (con ícono)
       L.marker([snapInfo.startNode.lat, snapInfo.startNode.lon], {
         icon: this._divIcon('🚶', '#1A9C8E', 80)
       })
-      .bindPopup(`<b>Inicio (Snapped)</b><br>Node ${snapInfo.startId}<br>${Utils.fmtCoord(snapInfo.startNode.lat, snapInfo.startNode.lon)}`, { closeButton: false })
+      .bindPopup(`<b>Start (Snapped)</b><br>Node ${snapInfo.startId}<br>${Utils.fmtCoord(snapInfo.startNode.lat, snapInfo.startNode.lon)}`, { closeButton: false })
       .addTo(this.routeLayer);
 
       // Línea de conexión inicio (punteada, naranja)
@@ -1830,14 +1830,14 @@ const MapRenderer = {
         opacity: 1,
         fillOpacity: 0.9,
       })
-      .bindPopup(`<b>Destino Geocoded</b><br>${Utils.fmtCoord(snapInfo.locB.lat, snapInfo.locB.lon)}`, { closeButton: false })
+      .bindPopup(`<b>Destination Geocoded</b><br>${Utils.fmtCoord(snapInfo.locB.lat, snapInfo.locB.lon)}`, { closeButton: false })
       .addTo(this.routeLayer);
 
       // Nodo snapped de destino (con ícono)
       L.marker([snapInfo.destNode.lat, snapInfo.destNode.lon], {
         icon: this._divIcon('🏁', '#D9534F', 80)
       })
-      .bindPopup(`<b>Destino (Snapped)</b><br>Node ${snapInfo.destId}<br>${Utils.fmtCoord(snapInfo.destNode.lat, snapInfo.destNode.lon)}`, { closeButton: false })
+      .bindPopup(`<b>Destination (Snapped)</b><br>Node ${snapInfo.destId}<br>${Utils.fmtCoord(snapInfo.destNode.lat, snapInfo.destNode.lon)}`, { closeButton: false })
       .addTo(this.routeLayer);
 
       // Línea de conexión destino (punteada, naranja)
@@ -1849,11 +1849,11 @@ const MapRenderer = {
     } else {
       // Fallback si no hay snapInfo (para compatibilidad)
       L.marker(coords[0],              { icon: this._divIcon('🚶', '#1A9C8E', 80) })
-        .bindPopup('<b>Inicio</b>')
+        .bindPopup('<b>Start</b>')
         .addTo(this.routeLayer);
 
       L.marker(coords[coords.length-1], { icon: this._divIcon('🏁', '#D9534F', 80) })
-        .bindPopup('<b>Destino</b>')
+        .bindPopup('<b>Destination</b>')
         .addTo(this.routeLayer);
     }
 
@@ -1866,18 +1866,18 @@ const MapRenderer = {
       const icon    = this._divIcon(poi.def.icon, poi.def.col, 28);
       const popupHtml = `
         <div style="font-size:13px;font-weight:600;margin-bottom:5px;color:#DCE4F0;">${poi.name}</div>
-        <div style="font-size:10.5px;color:#5A6A80;margin-bottom:10px;">${poi.def.lbl} · ${Utils.fmtDist(poi.distToRoute)} de la ruta</div>
+        <div style="font-size:10.5px;color:#5A6A80;margin-bottom:10px;">${poi.def.lbl} · ${Utils.fmtDist(poi.distToRoute)} from route</div>
         <div style="display:flex;flex-direction:column;gap:5px;">
           <button onclick="App.addWaypoint(${poi.id})"
             style="background:rgba(45,212,191,.12);border:1px solid rgba(45,212,191,.4);color:#2DD4BF;
                    padding:6px 10px;border-radius:6px;font-size:11.5px;cursor:pointer;text-align:left;width:100%;">
-            📍 Añadir parada
+            📍 Add stop
           </button>
           <button onclick="App.openSaberMas(this.dataset.n)"
             data-n="${(poi.name||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"
             style="background:rgba(88,152,255,.1);border:1px solid rgba(88,152,255,.3);color:#58bfff;
                    padding:6px 10px;border-radius:6px;font-size:11.5px;cursor:pointer;text-align:left;width:100%;">
-            🔍 Saber más
+            🔍 Learn more
           </button>
         </div>`;
       L.marker([poi.lat, poi.lon], { icon })
@@ -1944,11 +1944,11 @@ const UI = {
     document.getElementById('statsGrid').innerHTML = `
       <div class="stat-card">
         <div class="stat-num">${Utils.fmtDist(stats.distM)}</div>
-        <div class="stat-lbl">Distancia total</div>
+        <div class="stat-lbl">Total distance</div>
       </div>
       <div class="stat-card">
         <div class="stat-num">${Utils.fmtTime(stats.timeS)}</div>
-        <div class="stat-lbl">Tiempo estimado</div>
+        <div class="stat-lbl">Estimated time</div>
       </div>
     `;
   },
@@ -1985,7 +1985,7 @@ const UI = {
     document.getElementById('poiCount').textContent = filtered.length;
 
     if (!filtered.length) {
-      list.innerHTML = '<div style="padding:8px 10px;font-size:12px;color:var(--muted);">Sin POIs para esta selección</div>';
+      list.innerHTML = '<div style="padding:8px 10px;font-size:12px;color:var(--muted);">No POIs for this selection</div>';
       return;
     }
 
@@ -2008,10 +2008,10 @@ const UI = {
             <span class="poi-chevron">›</span>
           </div>
           <div class="poi-dropdown" id="poi-dd-${p.id}">
-            <button class="poi-dd-btn" onclick="event.stopPropagation();MapRenderer.flyTo(${p.lat},${p.lon})">🗺️ Ver en mapa</button>
-            <button class="poi-dd-btn" onclick="event.stopPropagation();App.addWaypoint(${p.id})">📍 Añadir parada</button>
+            <button class="poi-dd-btn" onclick="event.stopPropagation();MapRenderer.flyTo(${p.lat},${p.lon})">🗺️ View on map</button>
+            <button class="poi-dd-btn" onclick="event.stopPropagation();App.addWaypoint(${p.id})">📍 Add stop</button>
             <button class="poi-dd-btn" onclick="event.stopPropagation();App.openSaberMas(this.dataset.n)"
-              data-n="${(p.name||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}">🔍 Saber más</button>
+              data-n="${(p.name||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}">🔍 Learn more</button>
           </div>`;
       }
     }
@@ -2044,7 +2044,7 @@ const App = {
 
   // Precarga grafo simplificado en background (estrategia híbrida)
   async _preloadGraph() {
-    UI.setCacheStatus('loading', 'Descargando grafo de Tartu…');
+    UI.setCacheStatus('loading', 'Downloading Tartu graph…');
     try {
       let data = await Cache.get('simplified_tartu');
       if (!data) {
@@ -2053,11 +2053,11 @@ const App = {
       }
       const g = GraphBuilder.build(data);
       this.graph = g;  // Guardar para debug
-      const n = Object.keys(g.nodes).length.toLocaleString('es');
-      UI.setCacheStatus('ready', `Grafo listo · ${n} nodos`);
+      const n = Object.keys(g.nodes).length.toLocaleString('en');
+      UI.setCacheStatus('ready', `Graph ready · ${n} nodes`);
     } catch (e) {
       console.warn('Preload falló:', e);
-      UI.setCacheStatus('error', 'Carga bajo demanda activa');
+      UI.setCacheStatus('error', 'On-demand loading active');
     }
   },
 
@@ -2072,7 +2072,7 @@ const App = {
     this._pickMode = which;
     document.getElementById(`btnPick${which}`).classList.add('picking');
     MapRenderer.map.getContainer().classList.add('picking-mode');
-    UI.toast(`Haz clic en el mapa para fijar el ${which === 'A' ? 'inicio' : 'destino'}`, 'info', 5000);
+    UI.toast(`Click on the map to set the ${which === 'A' ? 'start' : 'destination'}`, 'info', 5000);
 
     this._mapClickHandler = (e) => this._onMapPick(e, which);
     MapRenderer.map.once('click', this._mapClickHandler);
@@ -2117,7 +2117,7 @@ const App = {
       const pinBtn = document.getElementById(`btnPin${which}`);
       if (pinBtn) pinBtn.classList.add('pinned');
     } catch (err) {
-      UI.toast(err.message || 'No se pudo obtener la dirección.', 'error', 5000);
+      UI.toast(err.message || 'Could not retrieve the address.', 'error', 5000);
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -2125,7 +2125,7 @@ const App = {
 
   async previewLocation(which) {
     const address = document.getElementById(`input${which}`).value.trim();
-    if (!address) { UI.toast('Escribe una dirección primero.', 'error'); return; }
+    if (!address) { UI.toast('Enter an address first.', 'error'); return; }
 
     const btn = document.getElementById(`btnPin${which}`);
     if (btn) btn.disabled = true;
@@ -2158,7 +2158,7 @@ const App = {
     const addrB = document.getElementById('inputB').value.trim();
 
     if (!addrA || !addrB) {
-      UI.toast('Introduce origen y destino para calcular.', 'error'); return;
+      UI.toast('Enter origin and destination to calculate.', 'error'); return;
     }
 
     document.getElementById('btnCalc').disabled = true;
@@ -2167,7 +2167,7 @@ const App = {
 
     try {
       // ── 1. Geocodificación ──────────────────────────────────
-      UI.overlay(true, 'Geocodificando direcciones…', '01 / 06', 10);
+      UI.overlay(true, 'Geocoding addresses…', '01 / 06', 10);
       const [locA, locB] = await Promise.all([
         Geocoder.geocode(addrA),
         Geocoder.geocode(addrB),
@@ -2176,7 +2176,7 @@ const App = {
       UI.setBadge('badgeB', locB.lat, locB.lon);
 
       // ── 2. Descarga grafo detallado + IDs de vías en parques ─
-      UI.progress('Descargando grafo detallado del área…', '02 / 06', 25);
+      UI.progress('Downloading detailed area graph…', '02 / 06', 25);
       const bbox   = Utils.buildBbox(locA.lat, locA.lon, locB.lat, locB.lon);
       const bboxId = [bbox.S,bbox.W,bbox.N,bbox.E].map(v=>v.toFixed(3)).join('_');
       const ck     = `detail_${bboxId}`;
@@ -2216,19 +2216,19 @@ const App = {
       this.parkAreasGeo = parkAreasGeo;
 
       // ── 3. Grafo ponderado ──────────────────────────────────
-      UI.progress('Construyendo grafo ponderado…', '03 / 06', 45);
+      UI.progress('Building weighted graph…', '03 / 06', 45);
       const graph = GraphBuilder.build(osmData, new Set(parkWayIds));
 
       if (!Object.keys(graph.nodes).length) {
-        throw new Error('El área no contiene vías transitables. Amplía el radio de búsqueda.');
+        throw new Error('The area contains no walkable ways. Expand the search radius.');
       }
 
-      // ── 4. Snap destino (nodo con aristas) ──────────────────
-      UI.progress('Mapeando destino al grafo…', '04 / 06', 52);
+      // ── 4. Snap destination (node with edges) ───────────────
+      UI.progress('Mapping destination to graph…', '04 / 06', 52);
       const destId = Pathfinder.snapToNode(locB.lat, locB.lon, graph.nodes, graph.edges);
 
       // ── 5. Dijkstra inverso desde destino ───────────────────
-      UI.progress('Calculando heurística (Dijkstra inverso)…', '05 / 06', 65);
+      UI.progress('Computing heuristic (reverse Dijkstra)…', '05 / 06', 65);
       const h = Pathfinder.dijkstraFromDest(graph, destId);
 
       // ── 4b/6. Snap origen + A* (con o sin parada) ───────────
@@ -2236,22 +2236,22 @@ const App = {
 
       if (this.waypoint) {
         // Ruta en dos tramos: A → parada → B
-        UI.progress('Mapeando parada al grafo…', '05 / 07', 68);
+        UI.progress('Mapping stop to graph…', '05 / 07', 68);
         const wpId = Pathfinder.snapToReachableNode(this.waypoint.lat, this.waypoint.lon, graph.nodes, h);
-        UI.progress('Calculando heurística para parada…', '06 / 07', 74);
+        UI.progress('Computing heuristic for stop…', '06 / 07', 74);
         const hW = Pathfinder.dijkstraFromDest(graph, wpId);
         startId  = Pathfinder.snapToReachableNode(locA.lat, locA.lon, graph.nodes, hW);
-        UI.progress('Ejecutando A* (con parada)…', '07 / 07', 82);
+        UI.progress('Running A* (with stop)…', '07 / 07', 82);
         const pathAW = Pathfinder.aStar(graph, hW, startId, wpId);
         const pathWB = Pathfinder.aStar(graph, h,  wpId,    destId);
-        if (!pathAW || !pathWB) throw new Error('A* no encontró ruta con la parada. Elimínala e inténtalo de nuevo.');
+        if (!pathAW || !pathWB) throw new Error('A* found no route with the stop. Remove it and try again.');
         path = [...pathAW, ...pathWB.slice(1)];
       } else {
-        UI.progress('Mapeando origen al grafo…', '05 / 06', 74);
+        UI.progress('Mapping origin to graph…', '05 / 06', 74);
         startId = Pathfinder.snapToReachableNode(locA.lat, locA.lon, graph.nodes, h);
-        UI.progress('Ejecutando A*…', '06 / 06', 82);
+        UI.progress('Running A*…', '06 / 06', 82);
         path = Pathfinder.aStar(graph, h, startId, destId);
-        if (!path) throw new Error('A* no encontró ruta. Prueba con otras direcciones.');
+        if (!path) throw new Error('A* found no route. Try different addresses.');
       }
 
       // ── Guardar info de snapping para debug ──────────────────
@@ -2270,7 +2270,7 @@ const App = {
       const stats = Pathfinder.calcStats(path, graph);
 
       // ── Renderizado ─────────────────────────────────────────
-      UI.progress('Renderizando ruta y POIs…', '06 / 06', 92);
+      UI.progress('Rendering route and POIs…', '06 / 06', 92);
       MapRenderer.drawRoute(path, graph.nodes, this.snapInfo);
       UI.renderStats(stats);
       if (GraphDebug.enabled && GraphDebug.stats) GraphDebug._showStatsPanel(GraphDebug.stats);
@@ -2284,13 +2284,13 @@ const App = {
 
       UI.overlay(false);
       UI.toast(
-        `Ruta lista · ${Utils.fmtDist(stats.distM)} · ${Utils.fmtTime(stats.timeS)}`,
+        `Route ready · ${Utils.fmtDist(stats.distM)} · ${Utils.fmtTime(stats.timeS)}`,
         'success'
       );
 
     } catch (e) {
       UI.overlay(false);
-      UI.toast(e.message || 'Error desconocido.', 'error', 7000);
+      UI.toast(e.message || 'Unknown error.', 'error', 7000);
       console.error(e);
     } finally {
       document.getElementById('btnCalc').disabled = false;
@@ -2322,7 +2322,7 @@ const App = {
     document.getElementById('waypointBar').classList.remove('hidden');
     document.querySelectorAll('.poi-dropdown.open').forEach(el => el.classList.remove('open'));
     document.querySelectorAll('.poi-item.expanded').forEach(el => el.classList.remove('expanded'));
-    UI.toast(`Parada añadida: ${poi.name}. Recalcula la ruta para incluirla.`, 'info', 4500);
+    UI.toast(`Stop added: ${poi.name}. Recalculate the route to include it.`, 'info', 4500);
   },
 
   removeWaypoint() {
@@ -2620,7 +2620,7 @@ const GraphDebug = {
       .addTo(fg);
 
       // Popup con ID del nodo
-      marker.bindPopup(`Nodo ${nodeId}<br>Lat: ${node.lat.toFixed(5)}<br>Lon: ${node.lon.toFixed(5)}`, {
+      marker.bindPopup(`Node ${nodeId}<br>Lat: ${node.lat.toFixed(5)}<br>Lon: ${node.lon.toFixed(5)}`, {
         closeButton: false,
         maxWidth: 200,
       });
@@ -2641,9 +2641,9 @@ const GraphDebug = {
     
     let html = `
       <div style="padding:10px; background:#131820; color:#DCE4F0; border-radius:8px; font-size:11px; font-family: monospace;">
-        <strong>Nodo ID:</strong> ${nodeId}<br/>
+        <strong>Node ID:</strong> ${nodeId}<br/>
         <strong>Coords:</strong> ${node.lat.toFixed(5)}° N, ${node.lon.toFixed(5)}° E<br/>
-        <strong>Conexiones:</strong> ${edges.length}<br/>
+        <strong>Connections:</strong> ${edges.length}<br/>
         <hr style="border:none; border-top:1px solid #2E3A50; margin:6px 0;"/>
     `;
     
@@ -2651,7 +2651,7 @@ const GraphDebug = {
       const targetNode = graph.nodes[e.to];
       html += `
         <div style="margin-top:4px;">
-          → Nodo ${e.to}<br/>
+          → Node ${e.to}<br/>
           &nbsp;&nbsp;<span style="color:#2DD4BF;">dist:</span> ${Math.round(e.dist)}m | 
           <span style="color:#34D399;">cost:</span> ${e.cost.toFixed(2)}<br/>
           &nbsp;&nbsp;${targetNode ? `${targetNode.lat.toFixed(5)}°, ${targetNode.lon.toFixed(5)}°` : '(no existe)'}
@@ -2714,10 +2714,10 @@ const GraphDebug = {
       <div style="padding:12px; background:linear-gradient(135deg, #131820, #1A2030); 
         color:#DCE4F0; border-radius:8px; border: 1px solid #2E3A50; 
         font-family: monospace; font-size:11px; line-height:1.6;">
-        <h3 style="margin:0 0 10px 0; color:#2DD4BF; font-size:12px;">📊 ESTADÍSTICAS DEL GRAFO</h3>
+        <h3 style="margin:0 0 10px 0; color:#2DD4BF; font-size:12px;">📊 GRAPH STATISTICS</h3>
         <table style="width:100%; border-collapse:collapse;">
           <tr style="border-bottom: 1px solid #252E40;">
-            <td style="padding:4px 6px;"><strong>Nodos:</strong></td>
+            <td style="padding:4px 6px;"><strong>Nodes:</strong></td>
             <td style="padding:4px 6px; color:#34D399;">${stats.numNodes}</td>
           </tr>
           <tr style="border-bottom: 1px solid #252E40;">
@@ -2729,46 +2729,46 @@ const GraphDebug = {
             <td style="padding:4px 6px; color:#34D399;">${stats.avgDegree}</td>
           </tr>
           <tr style="border-bottom: 1px solid #252E40;">
-            <td style="padding:4px 6px;"><strong>Componentes:</strong></td>
+            <td style="padding:4px 6px;"><strong>Components:</strong></td>
             <td style="padding:4px 6px; color:${stats.numComponents === 1 ? '#34D399' : '#F87171'};"><strong>${stats.numComponents}</strong></td>
           </tr>
           <tr>
-            <td style="padding:4px 6px;"><strong>Princ. Comp:</strong></td>
-            <td style="padding:4px 6px; color:#FBBF24;">${stats.largestComponent} nodos</td>
+            <td style="padding:4px 6px;"><strong>Main comp.:</strong></td>
+            <td style="padding:4px 6px; color:#FBBF24;">${stats.largestComponent} nodes</td>
           </tr>
         </table>
         ${stats.numComponents > 1 ? `
         <div style="margin-top:10px; padding:8px; background:rgba(248,113,113,.1); 
           border-left: 3px solid #F87171; color:#F87171;">
-          ⚠️  <strong>ALERTA:</strong> Grafo fragmentado en ${stats.numComponents} componentes.<br/>
-          Algunos nodos NO conectan con otros.
+          ⚠️  <strong>WARNING:</strong> Graph fragmented into ${stats.numComponents} components.<br/>
+          Some nodes are NOT connected to others.
         </div>
         ` : ''}
         <div style="margin-top:10px; font-size:10px; color:#8898AA; line-height:1.8;">
-          💡 Click en <b style="color:#DCE4F0;">nodos</b> para ver conexiones<br/>
-          💡 Click en <b style="color:#DCE4F0;">links</b> para ver propiedades<br/>
-          <span style="color:#2DD4BF;">■</span> bonificado &nbsp;
-          <span style="color:#8898AA;">■</span> neutro &nbsp;
-          <span style="color:#FBBF24;">■</span> penalizado &nbsp;
-          <span style="color:#F87171;">■</span> muy penalizado<br/>
-          <span style="color:#34D399;opacity:0.7;">▩</span> área verde bonificada (park_way)
+          💡 Click on <b style="color:#DCE4F0;">nodes</b> to see connections<br/>
+          💡 Click on <b style="color:#DCE4F0;">links</b> to see properties<br/>
+          <span style="color:#2DD4BF;">■</span> bonus &nbsp;
+          <span style="color:#8898AA;">■</span> neutral &nbsp;
+          <span style="color:#FBBF24;">■</span> penalised &nbsp;
+          <span style="color:#F87171;">■</span> highly penalised<br/>
+          <span style="color:#34D399;opacity:0.7;">▩</span> bonus green area (park_way)
         </div>
         <label style="display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer;font-size:11px;color:${this.parkLayer ? '#34D399' : '#5A6A80'};">
           <input type="checkbox" id="chkParkAreas" ${this.parkLayer ? 'checked' : 'disabled'}
             onchange="GraphDebug.toggleParkAreas(this.checked)"
             style="accent-color:#34D399;cursor:pointer;"/>
-          Mostrar áreas verdes${this.parkLayer ? '' : ' (sin datos)'}
+          Show green areas${this.parkLayer ? '' : ' (no data)'}
         </label>
         <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
-          <button onclick="Cache.clear('parkgeo').then(()=>UI.toast('Caché de áreas borrada — recalcula la ruta','success'))"
+          <button onclick="Cache.clear('parkgeo').then(()=>UI.toast('Area cache cleared — recalculate the route','success'))"
             style="flex:1;padding:4px 6px;background:#1A2030;border:1px solid #2E3A50;
                    border-radius:4px;color:#FBBF24;font-size:10px;cursor:pointer;">
-            ↺ Caché áreas
+            ↺ Area cache
           </button>
-          <button onclick="Cache.clear().then(()=>UI.toast('Toda la caché borrada — recalcula la ruta','success'))"
+          <button onclick="Cache.clear().then(()=>UI.toast('All cache cleared — recalculate the route','success'))"
             style="flex:1;padding:4px 6px;background:#1A2030;border:1px solid #2E3A50;
                    border-radius:4px;color:#F87171;font-size:10px;cursor:pointer;">
-            ↺ Caché total
+            ↺ Full cache
           </button>
         </div>
       </div>
@@ -2785,19 +2785,19 @@ const GraphDebug = {
         font-family:monospace; font-size:10px; line-height:1.5;">
         <h3 style="margin:0 0 8px 0; color:#2DD4BF; font-size:11px;">🎯 NODE SNAPPING</h3>
         <div style="margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #252E40;">
-          <div style="color:#34D399;">📍 INICIO</div>
+          <div style="color:#34D399;">📍 START</div>
           <div>Geocoded: ${Utils.fmtCoord(si.locA.lat, si.locA.lon)}</div>
           <div>Snapped: Node ${si.startId}</div>
-          <div style="color:#FBBF24;">Desviación: <strong>${dA} m</strong></div>
+          <div style="color:#FBBF24;">Deviation: <strong>${dA} m</strong></div>
         </div>
         <div style="margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #252E40;">
-          <div style="color:#34D399;">📍 DESTINO</div>
+          <div style="color:#34D399;">📍 DESTINATION</div>
           <div>Geocoded: ${Utils.fmtCoord(si.locB.lat, si.locB.lon)}</div>
           <div>Snapped: Node ${si.destId}</div>
-          <div style="color:#FBBF24;">Desviación: <strong>${dB} m</strong></div>
+          <div style="color:#FBBF24;">Deviation: <strong>${dB} m</strong></div>
         </div>
         <div style="font-size:9px; color:#8898AA;">
-          Las líneas <span style="color:#FBBF24;">naranjas punteadas</span> muestran la desviación
+          <span style="color:#FBBF24;">Dashed orange lines</span> show the deviation
         </div>
       </div>`;
     }
@@ -2814,14 +2814,14 @@ const GraphDebug = {
    */
   toggle(graph) {
     if (!graph || !graph.nodes || !graph.edges) {
-      UI.toast('Grafo no disponible. Carga una ruta primero.', 'error');
+      UI.toast('Graph not available. Load a route first.', 'error');
       return;
     }
 
     this.enabled = !this.enabled;
 
     if (this.enabled) {
-      UI.toast('🐛 DEBUG MODE ACTIVADO - Presiona D para desactivar', 'info', 3000);
+      UI.toast('🐛 DEBUG MODE ON - Press D to deactivate', 'info', 3000);
       const polys = this._parsePolygons(App.parkAreasGeo);
       this.drawGraph(graph, polys);
     } else {
@@ -2835,7 +2835,7 @@ const GraphDebug = {
       }
       const panel = document.getElementById('debugPanel');
       if (panel) panel.style.display = 'none';
-      UI.toast('DEBUG MODE desactivado', 'info', 2000);
+      UI.toast('DEBUG MODE off', 'info', 2000);
     }
   },
 
@@ -2925,9 +2925,9 @@ const PollutionLayer = {
     const el = document.getElementById('aqStatusText');
     if (!el) return;
     const map = {
-      loading: ['Cargando…',     '#FBBF24'],
-      ready:   [date || 'Listo', '#34D399'],
-      error:   ['No disponible', '#F87171'],
+      loading: ['Loading…',       '#FBBF24'],
+      ready:   [date || 'Ready',  '#34D399'],
+      error:   ['Unavailable',    '#F87171'],
     };
     const [txt, col] = map[state] || map.error;
     el.textContent = txt;
