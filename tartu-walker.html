@@ -1298,7 +1298,7 @@ out ids;`);
     return this._post(`
 [out:json][timeout:30];
 (
-  node["amenity"~"^(drinking_water|bench|toilets|fountain|cafe|restaurant|pharmacy|bicycle_parking|atm)$"](${b});
+  node["amenity"~"^(drinking_water|bench|toilets|fountain|cafe|restaurant|pharmacy|bicycle_parking)$"](${b});
   node["historic"~"^(monument|memorial|statue|ruins|castle)$"](${b});
   node["tourism"~"^(viewpoint|artwork|museum|attraction|information)$"](${b});
   node["leisure"~"^(pitch|playground|fitness_station)$"](${b});
