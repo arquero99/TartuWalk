@@ -1,6 +1,14 @@
-const express = require('express');
-const cors = require('cors');
-const fetch = require('node-fetch');
+const express    = require('express');
+const cors       = require('cors');
+const fetch      = require('node-fetch');
+const { spawn }  = require('child_process');
+const path       = require('path');
+const fs         = require('fs');
+
+// Use venv Python if available, otherwise fall back to system python3
+const VENV_PYTHON = path.join(__dirname, 'venv', 'bin', 'python3');
+const PYTHON_BIN  = process.env.PYTHON_BIN ||
+                    (fs.existsSync(VENV_PYTHON) ? VENV_PYTHON : 'python3');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -9,6 +17,9 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Serve the frontend from the repo root
+app.use(express.static(path.join(__dirname, '..')));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -153,6 +164,59 @@ app.get('/api/reverse', async (req, res) => {
   } catch (error) {
     console.error('Reverse geocoding proxy error:', error);
     res.status(500).json({ error: 'Internal server error', message: error.message });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// POLLUTION  (CAMS via Python)
+// ════════════════════════════════════════════════════════════════
+let _pollCache   = null;   // session-level cache
+let _pollPromise = null;   // in-flight request deduplication
+
+function runCamsFetch() {
+  if (_pollPromise) return _pollPromise;
+
+  _pollPromise = new Promise((resolve, reject) => {
+    const script = path.join(__dirname, 'cams_fetch.py');
+    const proc   = spawn(PYTHON_BIN, [script]);
+    let out = '', err = '';
+
+    proc.stdout.on('data', d => out += d);
+    proc.stderr.on('data', d => err += d);
+
+    const timer = setTimeout(() => {
+      proc.kill();
+      reject(new Error('CAMS timeout (5 min exceeded)'));
+    }, 300_000);
+
+    proc.on('close', code => {
+      clearTimeout(timer);
+      _pollPromise = null;
+      if (code !== 0 && !out.trim()) return reject(new Error(err.slice(0, 400) || `exit ${code}`));
+      try {
+        const data = JSON.parse(out);
+        if (data.error) return reject(new Error(data.error));
+        _pollCache = data;
+        resolve(data);
+      } catch (e) {
+        reject(new Error(`JSON parse: ${e.message} — stdout: ${out.slice(0, 200)}`));
+      }
+    });
+
+    proc.on('error', e => { clearTimeout(timer); _pollPromise = null; reject(e); });
+  });
+
+  return _pollPromise;
+}
+
+app.get('/api/pollution', async (req, res) => {
+  if (_pollCache) return res.json(_pollCache);
+  try {
+    const data = await runCamsFetch();
+    res.json(data);
+  } catch (e) {
+    console.error('CAMS error:', e.message);
+    res.status(500).json({ error: e.message });
   }
 });
 

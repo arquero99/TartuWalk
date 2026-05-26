@@ -645,6 +645,48 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
 .waypoint-remove:hover { color: var(--red); background: rgba(248,113,113,.1); }
 
 /* ── Cache status (footer) ───────────────────────────── */
+/* ── Air Quality section ──────────────────────────────── */
+.aq-section {
+  padding: 14px 20px 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.aq-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.aq-status {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--amber);
+}
+.aq-rows { display: flex; flex-direction: column; gap: 5px; }
+.aq-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text);
+  padding: 2px 0;
+  user-select: none;
+}
+.aq-row input[type=checkbox] { accent-color: var(--teal); cursor: pointer; width: 13px; height: 13px; }
+.aq-dot { font-size: 10px; transition: color .3s; }
+.aq-name { flex: 1; }
+.aq-unit { font-family: var(--font-mono); font-size: 9.5px; color: var(--muted); }
+.aq-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  margin-top: 10px;
+  font-size: 9.5px;
+  color: var(--muted2);
+}
+.aq-legend span { display: flex; align-items: center; gap: 3px; }
+
 .cache-status {
   margin-top: auto;
   border-top: 1px solid var(--border);
@@ -930,6 +972,41 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
         </div>
         <div class="poi-filters" id="poiFilters"></div>
         <div class="poi-list" id="poiList"></div>
+      </div>
+
+      <!-- Air Quality -->
+      <div class="aq-section">
+        <div class="aq-header">
+          <span class="section-label">Calidad del Aire</span>
+          <span class="aq-status" id="aqStatusText">Cargando…</span>
+        </div>
+        <div class="aq-rows">
+          <label class="aq-row">
+            <input type="checkbox" id="chkAq_pm25" disabled onchange="PollutionLayer.toggle('pm25',this.checked)"/>
+            <span class="aq-dot" id="dotAq_pm25" style="color:var(--muted);">●</span>
+            <span class="aq-name">PM2.5</span>
+            <span class="aq-unit">µg/m³</span>
+          </label>
+          <label class="aq-row">
+            <input type="checkbox" id="chkAq_no2" disabled onchange="PollutionLayer.toggle('no2',this.checked)"/>
+            <span class="aq-dot" id="dotAq_no2" style="color:var(--muted);">●</span>
+            <span class="aq-name">NO₂</span>
+            <span class="aq-unit">µg/m³</span>
+          </label>
+          <label class="aq-row">
+            <input type="checkbox" id="chkAq_co" disabled onchange="PollutionLayer.toggle('co',this.checked)"/>
+            <span class="aq-dot" id="dotAq_co" style="color:var(--muted);">●</span>
+            <span class="aq-name">CO</span>
+            <span class="aq-unit">µg/m³</span>
+          </label>
+        </div>
+        <div class="aq-legend">
+          <span><span style="color:#34D399;">■</span> Bueno</span>
+          <span><span style="color:#FBBF24;">■</span> Moderado</span>
+          <span><span style="color:#F97316;">■</span> Elevado</span>
+          <span><span style="color:#EF4444;">■</span> Alto</span>
+          <span><span style="color:#A855F7;">■</span> Muy alto</span>
+        </div>
       </div>
 
       <!-- Debug Panel -->
@@ -2770,10 +2847,100 @@ const GraphDebug = {
 };
 
 
+// ════════════════════════════════════════════════════════════════
+// ██ POLLUTION LAYER  (CAMS)
+// ════════════════════════════════════════════════════════════════
+const PollutionLayer = {
+  layers: { pm25: null, no2: null, co: null },
+
+  SCALES: {
+    pm25: { label:'PM2.5', unit:'µg/m³', breaks:[0,10,20,25,50],   colors:['#34D399','#FBBF24','#F97316','#EF4444','#A855F7'] },
+    no2:  { label:'NO₂',  unit:'µg/m³', breaks:[0,40,90,120,230],  colors:['#34D399','#FBBF24','#F97316','#EF4444','#A855F7'] },
+    co:   { label:'CO',   unit:'µg/m³', breaks:[0,500,1000,2000,4000], colors:['#34D399','#FBBF24','#F97316','#EF4444','#A855F7'] },
+  },
+
+  _color(key, val) {
+    const { breaks, colors } = this.SCALES[key];
+    let idx = 0;
+    for (let i = 0; i < breaks.length; i++) { if (val >= breaks[i]) idx = i; }
+    return colors[Math.min(idx, colors.length - 1)];
+  },
+
+  async init() {
+    this._setStatus('loading');
+    try {
+      const resp = await fetch(`${CONFIG.BACKEND_URL}/api/pollution`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+      this._build(data);
+      this._setStatus('ready', data.timestamp);
+    } catch (e) {
+      console.warn('Pollution data unavailable:', e.message);
+      this._setStatus('error');
+    }
+  },
+
+  _build(data) {
+    for (const key of ['pm25', 'no2', 'co']) {
+      const pts = data[key] || [];
+      if (!pts.length) continue;
+
+      const fg = L.featureGroup();
+      // Representative color = median value for the dot indicator
+      const sorted = [...pts].sort((a, b) => a[2] - b[2]);
+      const medVal = sorted[Math.floor(sorted.length / 2)]?.[2] ?? 0;
+      const dotCol = this._color(key, medVal);
+
+      for (const [lat, lon, val] of pts) {
+        const col = this._color(key, val);
+        L.circle([lat, lon], {
+          radius: 9000,
+          color: col, weight: 0.8, opacity: 0.6,
+          fillColor: col, fillOpacity: 0.3,
+        }).bindPopup(`
+          <div style="font-family:monospace;font-size:11px;color:#DCE4F0;min-width:110px;">
+            <b style="color:${col};">${this.SCALES[key].label}</b><br>
+            ${val.toFixed(2)} ${this.SCALES[key].unit}
+          </div>`, { maxWidth: 150 })
+          .addTo(fg);
+      }
+
+      this.layers[key] = fg;
+
+      const dot = document.getElementById(`dotAq_${key}`);
+      if (dot) dot.style.color = dotCol;
+      const chk = document.getElementById(`chkAq_${key}`);
+      if (chk) chk.disabled = false;
+    }
+  },
+
+  toggle(key, visible) {
+    if (!this.layers[key]) return;
+    if (visible) MapRenderer.map.addLayer(this.layers[key]);
+    else         MapRenderer.map.removeLayer(this.layers[key]);
+  },
+
+  _setStatus(state, date = '') {
+    const el = document.getElementById('aqStatusText');
+    if (!el) return;
+    const map = {
+      loading: ['Cargando…',     '#FBBF24'],
+      ready:   [date || 'Listo', '#34D399'],
+      error:   ['No disponible', '#F87171'],
+    };
+    const [txt, col] = map[state] || map.error;
+    el.textContent = txt;
+    el.style.color = col;
+  },
+};
+
+
 // ── Arranque ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   App.init();
   App.onPrefSlider(document.getElementById('prefSlider').value);
+  PollutionLayer.init();
   
   // Tecla D para activar debug
   document.addEventListener('keydown', (e) => {
