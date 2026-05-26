@@ -29,8 +29,10 @@ except ImportError:
     die("Missing dependencies. Run: pip install xarray netcdf4 numpy")
 
 
-URL = "https://ads.atmosphere.copernicus.eu/api"
-KEY = "6843b8a4-7a8c-4800-a9e1-8f58fa7a0c21"
+URL = os.environ.get("ADS_URL", "https://ads.atmosphere.copernicus.eu/api")
+KEY = os.environ.get("ADS_KEY", "")
+if not KEY:
+    die("ADS_KEY no configurada. Crea backend/.env con ADS_KEY=tu-api-key (ver .env.example)")
 
 # Wide bounding box: Estonia + neighbours for spatial context
 # [North, West, South, East]
