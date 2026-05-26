@@ -1771,7 +1771,6 @@ const MapRenderer = {
     this.poiLayer.clearLayers();
     for (const poi of pois) {
       const icon    = this._divIcon(poi.def.icon, poi.def.col, 28);
-      const gUrl    = `https://www.google.com/search?q=${encodeURIComponent(poi.name + ' Tartu')}`;
       const popupHtml = `
         <div style="font-size:13px;font-weight:600;margin-bottom:5px;color:#DCE4F0;">${poi.name}</div>
         <div style="font-size:10.5px;color:#5A6A80;margin-bottom:10px;">${poi.def.lbl} · ${Utils.fmtDist(poi.distToRoute)} de la ruta</div>
@@ -1781,11 +1780,11 @@ const MapRenderer = {
                    padding:6px 10px;border-radius:6px;font-size:11.5px;cursor:pointer;text-align:left;width:100%;">
             📍 Añadir parada
           </button>
-          <a href="${gUrl}" target="_blank" rel="noopener noreferrer"
+          <button onclick="App.openSaberMas(${JSON.stringify(poi.name)})"
             style="background:rgba(88,152,255,.1);border:1px solid rgba(88,152,255,.3);color:#58bfff;
-                   padding:6px 10px;border-radius:6px;font-size:11.5px;text-decoration:none;display:block;">
+                   padding:6px 10px;border-radius:6px;font-size:11.5px;cursor:pointer;text-align:left;width:100%;">
             🔍 Saber más
-          </a>
+          </button>
         </div>`;
       L.marker([poi.lat, poi.lon], { icon })
         .bindPopup(popupHtml, { maxWidth: 210, className: 'poi-map-popup' })
@@ -1907,7 +1906,6 @@ const UI = {
       if (!items || !items.length) continue;
       html += `<div class="poi-group-hdr">${cat.icon} ${cat.label}</div>`;
       for (const p of items) {
-        const gUrl = `https://www.google.com/search?q=${encodeURIComponent(p.name + ' Tartu')}`;
         html += `
           <div class="poi-item" onclick="App.togglePoiDropdown(${p.id})">
             <span class="poi-icon">${p.def.icon}</span>
@@ -1918,8 +1916,7 @@ const UI = {
           <div class="poi-dropdown" id="poi-dd-${p.id}">
             <button class="poi-dd-btn" onclick="event.stopPropagation();MapRenderer.flyTo(${p.lat},${p.lon})">🗺️ Ver en mapa</button>
             <button class="poi-dd-btn" onclick="event.stopPropagation();App.addWaypoint(${p.id})">📍 Añadir parada</button>
-            <a class="poi-dd-btn" href="${gUrl}" target="_blank" rel="noopener noreferrer"
-               onclick="event.stopPropagation()">🔍 Saber más</a>
+            <button class="poi-dd-btn" onclick="event.stopPropagation();App.openSaberMas(${JSON.stringify(p.name)})">🔍 Saber más</button>
           </div>`;
       }
     }
@@ -2239,6 +2236,21 @@ const App = {
   },
 
   // ── POI: toggle filtro de categoría ──────────────────
+  async openSaberMas(name) {
+    try {
+      const url  = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&format=json&origin=*&srlimit=1`;
+      const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      if (resp.ok) {
+        const hit = (await resp.json())?.query?.search?.[0];
+        if (hit) {
+          window.open(`https://en.wikipedia.org/wiki/${encodeURIComponent(hit.title)}`, '_blank', 'noopener,noreferrer');
+          return;
+        }
+      }
+    } catch {}
+    window.open(`https://www.google.com/search?q=${encodeURIComponent(name + ' Tartu')}`, '_blank', 'noopener,noreferrer');
+  },
+
   togglePoiFilter(catId) {
     if (this._poiActiveFilters.has(catId)) {
       this._poiActiveFilters.delete(catId);
