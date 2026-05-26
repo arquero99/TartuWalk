@@ -15,56 +15,66 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+];
+const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+
 // ════════════════════════════════════════════════════════════════
 // OVERPASS PROXY
 // ════════════════════════════════════════════════════════════════
 app.post('/api/overpass', async (req, res) => {
   try {
     const { query } = req.body;
-
-    if (!query) {
-      return res.status(400).json({ error: 'Missing query parameter' });
-    }
+    if (!query) return res.status(400).json({ error: 'Missing query parameter' });
 
     // Rate limiting: 1 request per second per IP
     const ip = req.ip;
     const now = Date.now();
     if (!global.rateLimitMap) global.rateLimitMap = {};
-    
-    const lastRequest = global.rateLimitMap[ip] || 0;
-    if (now - lastRequest < 1000) {
+    if (now - (global.rateLimitMap[ip] || 0) < 1000) {
       return res.status(429).json({ error: 'Rate limited: max 1 request/second' });
     }
     global.rateLimitMap[ip] = now;
 
-    // Forward to Overpass API
-    const response = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'TartuWalk/1.0 (+https://github.com/yourusername/TartuWalk)',
-      },
-      body: 'data=' + encodeURIComponent(query),
-      timeout: 120000, // 2 min timeout
-    });
+    // Try each endpoint; fall through on retryable errors or network failures
+    let lastStatus = 504;
+    for (const endpoint of OVERPASS_ENDPOINTS) {
+      let response;
+      try {
+        response = await fetch(endpoint, {
+          method:  'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent':   'TartuWalk/1.0 (+https://github.com/yourusername/TartuWalk)',
+          },
+          body:    'data=' + encodeURIComponent(query),
+          timeout: 120000,
+        });
+      } catch (e) {
+        console.warn(`Overpass ${endpoint} unreachable: ${e.message}`);
+        continue;
+      }
 
-    // Handle non-200 responses
-    if (!response.ok) {
-      console.error(`Overpass API error: ${response.status} ${response.statusText}`);
-      return res.status(response.status).json({
-        error: `Overpass API error: ${response.status}`,
-      });
+      if (response.ok) {
+        const data = await response.json();
+        return res.json(data);
+      }
+
+      lastStatus = response.status;
+      console.warn(`Overpass ${endpoint} → ${response.status}`);
+      if (!RETRYABLE.has(response.status)) {
+        return res.status(response.status).json({ error: `Overpass error: ${response.status}` });
+      }
     }
 
-    const data = await response.json();
-    res.json(data);
+    res.status(lastStatus).json({ error: `All Overpass endpoints failed (${lastStatus})` });
 
   } catch (error) {
     console.error('Overpass proxy error:', error);
-    res.status(500).json({
-      error: 'Internal server error',
-      message: error.message,
-    });
+    res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 });
 

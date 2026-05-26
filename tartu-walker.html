@@ -1090,6 +1090,20 @@ const Utils = {
   fmtCoord(la, lo) {
     return `${la.toFixed(5)}°N  ${lo.toFixed(5)}°E`;
   },
+
+  // Reintenta `fn` hasta `retries` veces en errores HTTP transitorios (429/500/502/503/504)
+  async withRetry(fn, retries = 3, baseMs = 2000) {
+    const retryable = new Set([429, 500, 502, 503, 504]);
+    for (let i = 1; i <= retries; i++) {
+      try {
+        return await fn();
+      } catch (e) {
+        const code = parseInt((e.message || '').match(/\d{3}/)?.[0] ?? 0);
+        if (!retryable.has(code) || i === retries) throw e;
+        await new Promise(r => setTimeout(r, baseMs * i));
+      }
+    }
+  },
 };
 
 
@@ -1166,39 +1180,39 @@ const Cache = {
 // ════════════════════════════════════════════════════════════════
 const Geocoder = {
   async geocode(address) {
-    const query = new URLSearchParams({
-      q: `${address}, Tartu, Estonia`,
-      limit: '1',
-    });
-    const url = `${CONFIG.BACKEND_URL}${CONFIG.APIS.NOMINATIM}?${query}`;
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error(`Geocoding HTTP ${resp.status}`);
-    const data = await resp.json();
-    if (!data.length) throw new Error(`Dirección no encontrada: "${address}"`);
-    const r = data[0];
-    return { lat: parseFloat(r.lat), lon: parseFloat(r.lon), display: r.display_name };
+    return Utils.withRetry(async () => {
+      const query = new URLSearchParams({ q: `${address}, Tartu, Estonia`, limit: '1' });
+      const url   = `${CONFIG.BACKEND_URL}${CONFIG.APIS.NOMINATIM}?${query}`;
+      const resp  = await fetch(url);
+      if (!resp.ok) throw new Error(`Geocoding HTTP ${resp.status}`);
+      const data = await resp.json();
+      if (!data.length) throw new Error(`Dirección no encontrada: "${address}"`);
+      const r = data[0];
+      return { lat: parseFloat(r.lat), lon: parseFloat(r.lon), display: r.display_name };
+    }, 3, 2000);
   },
 
   async reverseGeocode(lat, lon) {
-    const query = new URLSearchParams({ lat, lon });
-    const url   = `${CONFIG.BACKEND_URL}${CONFIG.APIS.REVERSE}?${query}`;
-    const resp  = await fetch(url);
-    if (!resp.ok) throw new Error(`Reverse geocoding HTTP ${resp.status}`);
-    const data = await resp.json();
-    if (data.error) throw new Error('No se encontró dirección en ese punto');
+    return Utils.withRetry(async () => {
+      const query = new URLSearchParams({ lat, lon });
+      const url   = `${CONFIG.BACKEND_URL}${CONFIG.APIS.REVERSE}?${query}`;
+      const resp  = await fetch(url);
+      if (!resp.ok) throw new Error(`Reverse geocoding HTTP ${resp.status}`);
+      const data = await resp.json();
+      if (data.error) throw new Error('No se encontró dirección en ese punto');
 
-    // Construye dirección corta legible
-    const a     = data.address || {};
-    const road  = a.road || a.pedestrian || a.path || a.footway || '';
-    const num   = a.house_number || '';
-    const short = [road, num].filter(Boolean).join(' ') || data.display_name.split(',')[0];
+      const a     = data.address || {};
+      const road  = a.road || a.pedestrian || a.path || a.footway || '';
+      const num   = a.house_number || '';
+      const short = [road, num].filter(Boolean).join(' ') || data.display_name.split(',')[0];
 
-    return {
-      lat:          parseFloat(data.lat),
-      lon:          parseFloat(data.lon),
-      display:      data.display_name,
-      shortAddress: short,
-    };
+      return {
+        lat:          parseFloat(data.lat),
+        lon:          parseFloat(data.lon),
+        display:      data.display_name,
+        shortAddress: short,
+      };
+    }, 3, 2000);
   },
 };
 
@@ -1208,14 +1222,16 @@ const Geocoder = {
 // ════════════════════════════════════════════════════════════════
 const Overpass = {
   async _post(query) {
-    const url = `${CONFIG.BACKEND_URL}${CONFIG.APIS.OVERPASS}`;
-    const resp = await fetch(url, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ query }),
-    });
-    if (!resp.ok) throw new Error(`Overpass HTTP ${resp.status}`);
-    return resp.json();
+    return Utils.withRetry(async () => {
+      const url  = `${CONFIG.BACKEND_URL}${CONFIG.APIS.OVERPASS}`;
+      const resp = await fetch(url, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ query }),
+      });
+      if (!resp.ok) throw new Error(`Overpass HTTP ${resp.status}`);
+      return resp.json();
+    }, 3, 2500);
   },
 
   // Grafo simplificado de toda la ciudad (startup, cacheado 24h)
