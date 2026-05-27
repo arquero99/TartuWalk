@@ -886,12 +886,11 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
   .pref-slider-section { padding: 8px 14px 0; }
   .btn-row             { padding: 8px 14px 8px; }
 
-  /* Compact cache footer — stays inside top bar */
-  .cache-status {
-    padding: 5px 14px;
-    font-size: 9px;
-    margin-top: 0;
-  }
+  /* Hide "Walking preference" label, keep slider */
+  .pref-slider-header  { display: none; }
+
+  /* Hide cache status entirely on mobile — map takes the space */
+  .cache-status { display: none; }
 
   /* Map fills all remaining space */
   #map { flex: 1; min-height: 0; }
