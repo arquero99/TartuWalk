@@ -842,6 +842,107 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
 
 /* ── Utility ─────────────────────────────────────────── */
 .hidden { display: none !important; }
+
+/* ── Bottom sheet (desktop: invisible wrapper) ────────── */
+.bs-handle { display: none; }
+
+/* ── Mobile / Responsive ─────────────────────────────── */
+@media (max-width: 768px) {
+
+  html, body { overflow: hidden; }
+
+  #app {
+    flex-direction: column;
+    height: 100dvh;
+  }
+
+  /* Sidebar → compact top bar */
+  #sidebar {
+    width: 100%;
+    min-width: 100%;
+    height: auto;
+    overflow: visible;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    z-index: 100;
+  }
+
+  /* Brand: single compact row */
+  .brand {
+    padding: 8px 14px 6px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand-eyebrow { display: none; }
+  .brand-sub     { display: none; }
+  .brand h1      { font-size: 18px; line-height: 1; }
+
+  #sidebar-scroll { overflow: visible; }
+
+  .inputs-section      { padding: 6px 14px 0;  gap: 8px; }
+  .pref-slider-section { padding: 8px 14px 0; }
+  .btn-row             { padding: 8px 14px 8px; }
+
+  /* Compact cache footer — stays inside top bar */
+  .cache-status {
+    padding: 5px 14px;
+    font-size: 9px;
+    margin-top: 0;
+  }
+
+  /* Map fills all remaining space */
+  #map { flex: 1; min-height: 0; }
+
+  /* ── Bottom sheet ── */
+  #bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--panel);
+    border-top: 1px solid var(--border2);
+    border-radius: 16px 16px 0 0;
+    z-index: 400;
+    max-height: 78vh;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(calc(100% - 48px));
+    transition: transform .3s cubic-bezier(.4,0,.2,1);
+    box-shadow: 0 -8px 40px rgba(0,0,0,.5);
+  }
+  #bottom-sheet.open { transform: translateY(0); }
+
+  .bs-handle {
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-shrink: 0;
+    cursor: pointer;
+    user-select: none;
+  }
+  .bs-pill {
+    width: 36px; height: 4px;
+    background: var(--border2);
+    border-radius: 2px;
+  }
+  .bs-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--teal);
+    letter-spacing: .5px;
+  }
+
+  #bs-inner {
+    overflow-y: auto;
+    flex: 1;
+    padding-bottom: env(safe-area-inset-bottom, 12px);
+  }
+}
 </style>
 </head>
 <body>
@@ -948,72 +1049,83 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
         <button class="btn-clear" id="btnClear" onclick="App.clearRoute()" title="Clear route">✕</button>
       </div>
 
-      <!-- Route stats -->
-      <div id="routeInfo" class="route-info hidden">
-        <div class="divider" style="margin:0 0 18px"></div>
-        <div class="section-label">Calculated route</div>
-        <div class="stats-grid" id="statsGrid"></div>
-      </div>
+      <!-- bottom-sheet: slides up from bottom on mobile, normal flow on desktop -->
+      <div id="bottom-sheet">
+        <div class="bs-handle" onclick="App.toggleBottomSheet()">
+          <div class="bs-pill"></div>
+          <span class="bs-label" id="bsLabel"></span>
+        </div>
+        <div id="bs-inner">
 
-      <!-- POIs -->
-      <div id="poiSection" class="poi-section hidden">
-        <div class="divider" style="margin:0 0 18px; margin-left:-20px; margin-right:-20px;"></div>
-        <div class="poi-header">
-          <span class="section-label">Points of interest</span>
-          <span class="poi-count" id="poiCount">0</span>
-        </div>
-        <div class="poi-radius-row">
-          <span style="font-size:9.5px;color:var(--muted2);white-space:nowrap;letter-spacing:.4px;">Radius</span>
-          <input type="range" class="poi-radius-slider" id="poiRadiusSlider"
-            min="50" max="600" value="150"
-            style="--poi-r-pct:18"
-            oninput="App.onPoiRadiusSlider(this.value)" />
-          <span class="poi-radius-val" id="poiRadiusVal">150m</span>
-        </div>
-        <div class="poi-filters" id="poiFilters"></div>
-        <div class="poi-list" id="poiList"></div>
-      </div>
+          <!-- Route stats -->
+          <div id="routeInfo" class="route-info hidden">
+            <div class="divider" style="margin:0 0 18px"></div>
+            <div class="section-label">Calculated route</div>
+            <div class="stats-grid" id="statsGrid"></div>
+          </div>
 
-      <!-- Air Quality -->
-      <div class="aq-section">
-        <div class="aq-header">
-          <span class="section-label">Air Quality</span>
-          <span class="aq-status" id="aqStatusText">Loading…</span>
-        </div>
-        <div class="aq-rows">
-          <label class="aq-row">
-            <input type="checkbox" id="chkAq_pm25" disabled onchange="PollutionLayer.toggle('pm25',this.checked)"/>
-            <span class="aq-dot" id="dotAq_pm25" style="color:var(--muted);">●</span>
-            <span class="aq-name">PM2.5</span>
-            <span class="aq-unit">µg/m³</span>
-          </label>
-          <label class="aq-row">
-            <input type="checkbox" id="chkAq_no2" disabled onchange="PollutionLayer.toggle('no2',this.checked)"/>
-            <span class="aq-dot" id="dotAq_no2" style="color:var(--muted);">●</span>
-            <span class="aq-name">NO₂</span>
-            <span class="aq-unit">µg/m³</span>
-          </label>
-          <label class="aq-row">
-            <input type="checkbox" id="chkAq_co" disabled onchange="PollutionLayer.toggle('co',this.checked)"/>
-            <span class="aq-dot" id="dotAq_co" style="color:var(--muted);">●</span>
-            <span class="aq-name">CO</span>
-            <span class="aq-unit">µg/m³</span>
-          </label>
-        </div>
-        <div class="aq-legend">
-          <span><span style="color:#34D399;">■</span> Good</span>
-          <span><span style="color:#FBBF24;">■</span> Moderate</span>
-          <span><span style="color:#F97316;">■</span> High</span>
-          <span><span style="color:#EF4444;">■</span> Very high</span>
-          <span><span style="color:#A855F7;">■</span> Extreme</span>
-        </div>
-      </div>
+          <!-- POIs -->
+          <div id="poiSection" class="poi-section hidden">
+            <div class="divider" style="margin:0 0 18px; margin-left:-20px; margin-right:-20px;"></div>
+            <div class="poi-header">
+              <span class="section-label">Points of interest</span>
+              <span class="poi-count" id="poiCount">0</span>
+            </div>
+            <div class="poi-radius-row">
+              <span style="font-size:9.5px;color:var(--muted2);white-space:nowrap;letter-spacing:.4px;">Radius</span>
+              <input type="range" class="poi-radius-slider" id="poiRadiusSlider"
+                min="50" max="600" value="150"
+                style="--poi-r-pct:18"
+                oninput="App.onPoiRadiusSlider(this.value)" />
+              <span class="poi-radius-val" id="poiRadiusVal">150m</span>
+            </div>
+            <div class="poi-filters" id="poiFilters"></div>
+            <div class="poi-list" id="poiList"></div>
+          </div>
 
-      <!-- Debug Panel -->
-      <div id="debugPanel" style="display:none; margin: 18px 20px 0; padding: 12px;">
-        <div style="font-size:11px; color:#8898AA;">Press D to activate graph debug</div>
-      </div>
-    </div>
+          <!-- Air Quality -->
+          <div class="aq-section">
+            <div class="aq-header">
+              <span class="section-label">Air Quality</span>
+              <span class="aq-status" id="aqStatusText">Loading…</span>
+            </div>
+            <div class="aq-rows">
+              <label class="aq-row">
+                <input type="checkbox" id="chkAq_pm25" disabled onchange="PollutionLayer.toggle('pm25',this.checked)"/>
+                <span class="aq-dot" id="dotAq_pm25" style="color:var(--muted);">●</span>
+                <span class="aq-name">PM2.5</span>
+                <span class="aq-unit">µg/m³</span>
+              </label>
+              <label class="aq-row">
+                <input type="checkbox" id="chkAq_no2" disabled onchange="PollutionLayer.toggle('no2',this.checked)"/>
+                <span class="aq-dot" id="dotAq_no2" style="color:var(--muted);">●</span>
+                <span class="aq-name">NO₂</span>
+                <span class="aq-unit">µg/m³</span>
+              </label>
+              <label class="aq-row">
+                <input type="checkbox" id="chkAq_co" disabled onchange="PollutionLayer.toggle('co',this.checked)"/>
+                <span class="aq-dot" id="dotAq_co" style="color:var(--muted);">●</span>
+                <span class="aq-name">CO</span>
+                <span class="aq-unit">µg/m³</span>
+              </label>
+            </div>
+            <div class="aq-legend">
+              <span><span style="color:#34D399;">■</span> Good</span>
+              <span><span style="color:#FBBF24;">■</span> Moderate</span>
+              <span><span style="color:#F97316;">■</span> High</span>
+              <span><span style="color:#EF4444;">■</span> Very high</span>
+              <span><span style="color:#A855F7;">■</span> Extreme</span>
+            </div>
+          </div>
+
+          <!-- Debug Panel -->
+          <div id="debugPanel" style="display:none; margin: 18px 20px 0; padding: 12px;">
+            <div style="font-size:11px; color:#8898AA;">Press D to activate graph debug</div>
+          </div>
+
+        </div><!-- #bs-inner -->
+      </div><!-- #bottom-sheet -->
+    </div><!-- #sidebar-scroll -->
 
     <!-- Cache status footer -->
     <div class="cache-status">
@@ -2283,10 +2395,9 @@ const App = {
       } catch (e) { console.warn('POIs no disponibles:', e); }
 
       UI.overlay(false);
-      UI.toast(
-        `Route ready · ${Utils.fmtDist(stats.distM)} · ${Utils.fmtTime(stats.timeS)}`,
-        'success'
-      );
+      const routeSummary = `${Utils.fmtDist(stats.distM)} · ${Utils.fmtTime(stats.timeS)}`;
+      UI.toast(`Route ready · ${routeSummary}`, 'success');
+      if (window.innerWidth <= 768) this.openBottomSheet(routeSummary);
 
     } catch (e) {
       UI.overlay(false);
@@ -2422,6 +2533,24 @@ const App = {
       if (b) { b.classList.remove('pinned', 'picking'); b.disabled = false; }
     });
     MapRenderer.map.setView(CONFIG.MAP.CENTER, CONFIG.MAP.ZOOM);
+    this.closeBottomSheet();
+  },
+
+  // ── Bottom sheet (mobile) ────────────────────────────
+  toggleBottomSheet() {
+    document.getElementById('bottom-sheet')?.classList.toggle('open');
+  },
+  openBottomSheet(label = '') {
+    const bs = document.getElementById('bottom-sheet');
+    if (!bs) return;
+    bs.classList.add('open');
+    if (label) {
+      const el = document.getElementById('bsLabel');
+      if (el) el.textContent = label;
+    }
+  },
+  closeBottomSheet() {
+    document.getElementById('bottom-sheet')?.classList.remove('open');
   },
 };
 
