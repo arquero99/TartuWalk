@@ -1041,12 +1041,14 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
     border-radius: 2px;
   }
 
-  /* Sidebar collapsed: slide up, leaving only the handle visible */
-  #sidebar {
-    transition: transform .3s cubic-bezier(.4,0,.2,1);
+  /* Sidebar-scroll collapses, brand stays visible at top */
+  #sidebar-scroll {
+    transition: max-height .3s cubic-bezier(.4,0,.2,1);
+    max-height: 1200px;
   }
-  #sidebar.collapsed {
-    transform: translateY(calc(-100% + 24px));
+  #sidebar.collapsed #sidebar-scroll {
+    max-height: 0;
+    overflow: hidden;
   }
 }
 </style>
