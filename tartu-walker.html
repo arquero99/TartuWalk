@@ -1200,19 +1200,35 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
             <div class="aq-rows">
               <label class="aq-row">
                 <input type="checkbox" id="chkAq_pm25" disabled onchange="PollutionLayer.toggle('pm25',this.checked)"/>
-                <span class="aq-dot" id="dotAq_pm25" style="color:var(--muted);">●</span>
+                <span class="aq-dot" id="dotAq_pm25" style="color:var(--muted);">
+                  <svg width="12" height="12" viewBox="0 0 8 8" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle">
+                    <line x1="0" y1="8" x2="8" y2="0" stroke="currentColor" stroke-width="1.5"/>
+                    <line x1="-1" y1="2" x2="2" y2="-1" stroke="currentColor" stroke-width="1.5"/>
+                    <line x1="6" y1="9" x2="9" y2="6" stroke="currentColor" stroke-width="1.5"/>
+                  </svg>
+                </span>
                 <span class="aq-name">PM2.5</span>
                 <span class="aq-unit">µg/m³</span>
               </label>
               <label class="aq-row">
                 <input type="checkbox" id="chkAq_no2" disabled onchange="PollutionLayer.toggle('no2',this.checked)"/>
-                <span class="aq-dot" id="dotAq_no2" style="color:var(--muted);">●</span>
+                <span class="aq-dot" id="dotAq_no2" style="color:var(--muted);">
+                  <svg width="12" height="12" viewBox="0 0 8 8" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle">
+                    <circle cx="2" cy="2" r="1.2" fill="currentColor"/>
+                    <circle cx="6" cy="6" r="1.2" fill="currentColor"/>
+                  </svg>
+                </span>
                 <span class="aq-name">NO₂</span>
                 <span class="aq-unit">µg/m³</span>
               </label>
               <label class="aq-row">
                 <input type="checkbox" id="chkAq_co" disabled onchange="PollutionLayer.toggle('co',this.checked)"/>
-                <span class="aq-dot" id="dotAq_co" style="color:var(--muted);">●</span>
+                <span class="aq-dot" id="dotAq_co" style="color:var(--muted);">
+                  <svg width="12" height="12" viewBox="0 0 8 8" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle">
+                    <line x1="4" y1="0" x2="4" y2="8" stroke="currentColor" stroke-width="1.2"/>
+                    <line x1="0" y1="4" x2="8" y2="4" stroke="currentColor" stroke-width="1.2"/>
+                  </svg>
+                </span>
                 <span class="aq-name">CO</span>
                 <span class="aq-unit">µg/m³</span>
               </label>
@@ -1223,6 +1239,11 @@ input[type=range].poi-radius-slider::-moz-range-thumb {
               <span><span style="color:#F97316;">■</span> High</span>
               <span><span style="color:#EF4444;">■</span> Very high</span>
               <span><span style="color:#A855F7;">■</span> Extreme</span>
+            </div>
+            <div class="aq-legend" style="margin-top:4px;color:var(--muted);font-size:10px;">
+              <span><svg width="10" height="10" viewBox="0 0 8 8" style="vertical-align:middle"><line x1="0" y1="8" x2="8" y2="0" stroke="currentColor" stroke-width="1.5"/></svg> PM2.5</span>
+              <span><svg width="10" height="10" viewBox="0 0 8 8" style="vertical-align:middle"><circle cx="4" cy="4" r="1.5" fill="currentColor"/></svg> NO₂</span>
+              <span><svg width="10" height="10" viewBox="0 0 8 8" style="vertical-align:middle"><line x1="4" y1="0" x2="4" y2="8" stroke="currentColor" stroke-width="1.2"/><line x1="0" y1="4" x2="8" y2="4" stroke="currentColor" stroke-width="1.2"/></svg> CO</span>
             </div>
           </div>
 
@@ -3109,6 +3130,7 @@ const GraphDebug = {
 // ════════════════════════════════════════════════════════════════
 const PollutionLayer = {
   layers: { pm25: null, no2: null, co: null },
+  _rects: { pm25: [], no2: [], co: [] },
 
   SCALES: {
     pm25: { label:'PM2.5', unit:'µg/m³', breaks:[0,10,20,25,50],   colors:['#34D399','#FBBF24','#F97316','#EF4444','#A855F7'] },
@@ -3138,30 +3160,64 @@ const PollutionLayer = {
     }
   },
 
+  _colorIdx(key, val) {
+    const { breaks, colors } = this.SCALES[key];
+    let idx = 0;
+    for (let i = 0; i < breaks.length; i++) { if (val >= breaks[i]) idx = i; }
+    return Math.min(idx, colors.length - 1);
+  },
+
   _build(data) {
+    this._rects = { pm25: [], no2: [], co: [] };
+    const svgRend = L.svg();
+
     for (const key of ['pm25', 'no2', 'co']) {
       const pts = data[key] || [];
       if (!pts.length) continue;
 
       const fg = L.featureGroup();
-      // Representative color = median value for the dot indicator
+
       const sorted = [...pts].sort((a, b) => a[2] - b[2]);
       const medVal = sorted[Math.floor(sorted.length / 2)]?.[2] ?? 0;
       const dotCol = this._color(key, medVal);
 
+      // Infer grid cell size from unique coordinate values
+      const latVals = [...new Set(pts.map(p => p[0]))].sort((a, b) => a - b);
+      const lonVals = [...new Set(pts.map(p => p[1]))].sort((a, b) => a - b);
+      const dLat = latVals.length > 1 ? latVals[1] - latVals[0] : 0.1;
+      const dLon = lonVals.length > 1 ? lonVals[1] - lonVals[0] : 0.1;
+      const hLat = dLat / 2, hLon = dLon / 2;
+
       for (const [lat, lon, val] of pts) {
         const col = this._color(key, val);
-        L.circle([lat, lon], {
-          radius: 9000,
-          color: col, weight: 0.8, opacity: 0.6,
-          fillColor: col, fillOpacity: 0.3,
-        }).bindPopup(`
+        const ci  = this._colorIdx(key, val);
+        const rect = L.rectangle(
+          [[lat - hLat, lon - hLon], [lat + hLat, lon + hLon]],
+          {
+            renderer: svgRend,
+            color: col, weight: 0.5, opacity: 0.4,
+            fillColor: col, fillOpacity: 0.01,
+            interactive: true,
+          }
+        ).bindPopup(`
           <div style="font-family:monospace;font-size:11px;color:#DCE4F0;min-width:110px;">
             <b style="color:${col};">${this.SCALES[key].label}</b><br>
             ${val.toFixed(2)} ${this.SCALES[key].unit}
-          </div>`, { maxWidth: 150 })
-          .addTo(fg);
+          </div>`, { maxWidth: 150 });
+        rect.addTo(fg);
+        this._rects[key].push([rect, ci]);
       }
+
+      // Bounding box of the downloaded grid
+      const minLat = latVals[0] - hLat,                     maxLat = latVals[latVals.length - 1] + hLat;
+      const minLon = lonVals[0] - hLon,                     maxLon = lonVals[lonVals.length - 1] + hLon;
+      L.rectangle([[minLat, minLon], [maxLat, maxLon]], {
+        renderer: svgRend,
+        color: dotCol, weight: 1.5, opacity: 0.75,
+        fill: false,
+        dashArray: '8,5',
+        interactive: false,
+      }).addTo(fg);
 
       this.layers[key] = fg;
 
@@ -3174,8 +3230,66 @@ const PollutionLayer = {
 
   toggle(key, visible) {
     if (!this.layers[key]) return;
-    if (visible) MapRenderer.map.addLayer(this.layers[key]);
-    else         MapRenderer.map.removeLayer(this.layers[key]);
+    if (visible) {
+      MapRenderer.map.addLayer(this.layers[key]);
+      this._ensurePatterns();
+      this._applyPatterns(key);
+    } else {
+      MapRenderer.map.removeLayer(this.layers[key]);
+    }
+  },
+
+  _ensurePatterns() {
+    const pane = MapRenderer.map.getPanes().overlayPane;
+    const svgEl = pane.querySelector('svg');
+    if (!svgEl || svgEl.querySelector('#pat-pm25-0')) return;
+
+    const ns = 'http://www.w3.org/2000/svg';
+    let defs = svgEl.querySelector('defs');
+    if (!defs) {
+      defs = document.createElementNS(ns, 'defs');
+      svgEl.insertBefore(defs, svgEl.firstChild);
+    }
+
+    const colors = ['#34D399', '#FBBF24', '#F97316', '#EF4444', '#A855F7'];
+    for (let i = 0; i < colors.length; i++) {
+      const c = colors[i];
+      // PM2.5: diagonal lines (/)
+      this._addPattern(defs, ns, `pat-pm25-${i}`, 8, 8,
+        `<line x1="0" y1="8" x2="8" y2="0" stroke="${c}" stroke-width="1.5"/>` +
+        `<line x1="-1" y1="2" x2="2" y2="-1" stroke="${c}" stroke-width="1.5"/>` +
+        `<line x1="6" y1="9" x2="9" y2="6" stroke="${c}" stroke-width="1.5"/>`
+      );
+      // NO₂: dots
+      this._addPattern(defs, ns, `pat-no2-${i}`, 8, 8,
+        `<circle cx="2" cy="2" r="1.3" fill="${c}"/>` +
+        `<circle cx="6" cy="6" r="1.3" fill="${c}"/>`
+      );
+      // CO: crosshatch (+)
+      this._addPattern(defs, ns, `pat-co-${i}`, 8, 8,
+        `<line x1="4" y1="0" x2="4" y2="8" stroke="${c}" stroke-width="1.2"/>` +
+        `<line x1="0" y1="4" x2="8" y2="4" stroke="${c}" stroke-width="1.2"/>`
+      );
+    }
+  },
+
+  _addPattern(defs, ns, id, w, h, content) {
+    const pat = document.createElementNS(ns, 'pattern');
+    pat.setAttribute('id', id);
+    pat.setAttribute('width', String(w));
+    pat.setAttribute('height', String(h));
+    pat.setAttribute('patternUnits', 'userSpaceOnUse');
+    pat.innerHTML = content;
+    defs.appendChild(pat);
+  },
+
+  _applyPatterns(key) {
+    for (const [rect, ci] of (this._rects[key] || [])) {
+      if (rect._path) {
+        rect._path.setAttribute('fill', `url(#pat-${key}-${ci})`);
+        rect._path.setAttribute('fill-opacity', '0.55');
+      }
+    }
   },
 
   _setStatus(state, date = '') {
