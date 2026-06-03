@@ -2815,10 +2815,23 @@ const GraphDebug = {
     const stats = this.computeStats(graph);
     this.stats = stats;
 
+    // Determinar nodos y aristas pertenecientes a la ruta calculada
+    const routePath = App.lastPath;
+    const routeNodeSet = new Set();
+    const routeEdgeSet = new Set();
+    if (routePath && routePath.length > 1) {
+      for (const nodeId of routePath) routeNodeSet.add(nodeId);
+      for (let i = 0; i < routePath.length - 1; i++) {
+        const a = routePath[i], b = routePath[i + 1];
+        routeEdgeSet.add(a < b ? `${a}-${b}` : `${b}-${a}`);
+      }
+    }
+    const hasRoute = routeNodeSet.size > 0;
+
     // Color por componente conectado
     const componentColor = {};
     const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'];
-    
+
     stats.components.forEach((comp, idx) => {
       comp.forEach(nodeId => {
         componentColor[nodeId] = colors[idx % colors.length];
@@ -2831,11 +2844,33 @@ const GraphDebug = {
                          : m <= 1.60 ? '#FBBF24'   // ámbar — penalización moderada
                          :             '#F87171';  // rojo  — penalización alta
 
-    // Dibujar edges primero (para que estén debajo de los nodos)
+    const makeEdgePopup = (edge, col) => {
+      const ap      = edge.applied || {};
+      const entries = Object.entries(ap);
+      const rulesHtml = entries.length
+        ? entries.map(([name, delta]) => {
+            const sign  = delta > 0 ? '+' : '';
+            const color = delta < 0 ? '#34D399' : '#F87171';
+            return `<div style="color:${color};">${delta < 0 ? '✓' : '⚠'} <b>${name}</b>: ${sign}${delta.toFixed(2)}</div>`;
+          }).join('')
+        : '<div style="color:#5A6A80;">Sin modificadores (×1.00)</div>';
+      return `
+        <div style="font-family:monospace;font-size:11px;color:#DCE4F0;min-width:190px;line-height:1.7;">
+          <div style="color:#8898AA;margin-bottom:4px;font-size:10px;">highway: <b style="color:#DCE4F0;">${edge.hw || '–'}</b></div>
+          <div>dist: <b style="color:#2DD4BF;">${Math.round(edge.dist)} m</b></div>
+          <div>mult: <b style="color:${col};">×${(edge.mult ?? 1).toFixed(3)}</b></div>
+          <div>cost: <b>${(edge.cost ?? 0).toFixed(1)}</b></div>
+          <hr style="border:none;border-top:1px solid #252E40;margin:5px 0;"/>
+          ${rulesHtml}
+        </div>`;
+    };
+
+    // ── Paso 1: edges NO pertenecientes a la ruta (debajo) ──────
     const seen = new Set();
+    const routeEdgesBuf = [];
+
     for (const [fromId, edges] of Object.entries(graph.edges)) {
       for (const edge of edges) {
-        // Evitar dibujar cada arista bidireccional dos veces
         const key = fromId < edge.to ? `${fromId}-${edge.to}` : `${edge.to}-${fromId}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -2844,66 +2879,86 @@ const GraphDebug = {
         const to   = graph.nodes[edge.to];
         if (!from || !to) continue;
 
-        const coords = [[from.lat, from.lon], [to.lat, to.lon]];
-        const col    = multColor(edge.mult ?? 1.0);
+        const coords  = [[from.lat, from.lon], [to.lat, to.lon]];
+        const col     = multColor(edge.mult ?? 1.0);
+        const isRoute = hasRoute && routeEdgeSet.has(key);
 
-        // Línea visible (no interactiva)
+        if (isRoute) {
+          routeEdgesBuf.push({ coords, col, edge });
+          continue;
+        }
+
         L.polyline(coords, {
-          color: col, weight: 2, opacity: 0.55,
+          color: col,
+          weight:  hasRoute ? 1 : 2,
+          opacity: hasRoute ? 0.18 : 0.55,
           dashArray: edge.mult > 1.08 ? '4 3' : null,
           interactive: false,
         }).addTo(fg);
 
-        // Zona de clic invisible (interactiva)
-        const ap      = edge.applied || {};
-        const entries = Object.entries(ap);
-        const rulesHtml = entries.length
-          ? entries.map(([name, delta]) => {
-              const sign  = delta > 0 ? '+' : '';
-              const color = delta < 0 ? '#34D399' : '#F87171';
-              return `<div style="color:${color};">${delta < 0 ? '✓' : '⚠'} <b>${name}</b>: ${sign}${delta.toFixed(2)}</div>`;
-            }).join('')
-          : '<div style="color:#5A6A80;">Sin modificadores (×1.00)</div>';
-
-        const multStr  = (edge.mult ?? 1).toFixed(3);
-        const multCol  = col;
-        const popupHtml = `
-          <div style="font-family:monospace;font-size:11px;color:#DCE4F0;min-width:190px;line-height:1.7;">
-            <div style="color:#8898AA;margin-bottom:4px;font-size:10px;">highway: <b style="color:#DCE4F0;">${edge.hw || '–'}</b></div>
-            <div>dist: <b style="color:#2DD4BF;">${Math.round(edge.dist)} m</b></div>
-            <div>mult: <b style="color:${multCol};">×${multStr}</b></div>
-            <div>cost: <b>${(edge.cost ?? 0).toFixed(1)}</b></div>
-            <hr style="border:none;border-top:1px solid #252E40;margin:5px 0;"/>
-            ${rulesHtml}
-          </div>`;
-
         L.polyline(coords, { weight: 12, opacity: 0, interactive: true })
-          .bindPopup(popupHtml, { maxWidth: 260 })
+          .bindPopup(makeEdgePopup(edge, col), { maxWidth: 260 })
           .addTo(fg);
       }
     }
 
-    // Dibujar nodos
+    // ── Paso 2: nodos NO pertenecientes a la ruta (debajo) ──────
     for (const [nodeId, node] of Object.entries(graph.nodes)) {
-      const isLargeComponent = nodeId in componentColor && 
+      if (hasRoute && routeNodeSet.has(nodeId)) continue;
+
+      const isLargeComponent = nodeId in componentColor &&
         stats.components.some(c => c.has(nodeId) && c.size === stats.largestComponent);
-      
-      const marker = L.circleMarker([node.lat, node.lon], {
-        radius: isLargeComponent ? 5 : 3,
-        fillColor: componentColor[nodeId] || '#999',
-        color: 'rgba(0,0,0,0.3)',
-        weight: 1,
-        opacity: 1,
-        fillOpacity: 0.8,
+
+      L.circleMarker([node.lat, node.lon], {
+        radius:      hasRoute ? 2 : (isLargeComponent ? 5 : 3),
+        fillColor:   componentColor[nodeId] || '#999',
+        color:       'rgba(0,0,0,0.3)',
+        weight:      1,
+        opacity:     hasRoute ? 0.35 : 1,
+        fillOpacity: hasRoute ? 0.25 : 0.8,
       })
       .on('click', () => this.selectNode(graph, nodeId))
+      .bindPopup(`Node ${nodeId}<br>Lat: ${node.lat.toFixed(5)}<br>Lon: ${node.lon.toFixed(5)}`, { closeButton: false, maxWidth: 200 })
       .addTo(fg);
+    }
 
-      // Popup con ID del nodo
-      marker.bindPopup(`Node ${nodeId}<br>Lat: ${node.lat.toFixed(5)}<br>Lon: ${node.lon.toFixed(5)}`, {
-        closeButton: false,
-        maxWidth: 200,
-      });
+    // ── Paso 3: edges DE la ruta (encima, inflados) ─────────────
+    for (const { coords, col, edge } of routeEdgesBuf) {
+      L.polyline(coords, {
+        color: col, weight: 6, opacity: 1.0,
+        dashArray: edge.mult > 1.08 ? '8 4' : null,
+        interactive: false,
+      }).addTo(fg);
+
+      L.polyline(coords, { weight: 18, opacity: 0, interactive: true })
+        .bindPopup(makeEdgePopup(edge, col), { maxWidth: 260 })
+        .addTo(fg);
+    }
+
+    // ── Paso 4: nodos DE la ruta (encima, inflados) ─────────────
+    if (hasRoute) {
+      const drawnRouteNodes = new Set();
+      for (const nodeId of routePath) {
+        if (drawnRouteNodes.has(nodeId)) continue;
+        drawnRouteNodes.add(nodeId);
+        const node = graph.nodes[nodeId];
+        if (!node) continue;
+
+        const isLargeComponent = nodeId in componentColor &&
+          stats.components.some(c => c.has(nodeId) && c.size === stats.largestComponent);
+
+        L.circleMarker([node.lat, node.lon], {
+          radius:      isLargeComponent ? 9 : 7,
+          fillColor:   componentColor[nodeId] || '#999',
+          color:       'rgba(255,255,255,0.85)',
+          weight:      2,
+          opacity:     1,
+          fillOpacity: 1.0,
+        })
+        .on('click', () => this.selectNode(graph, nodeId))
+        .bindPopup(`Node ${nodeId}<br>Lat: ${node.lat.toFixed(5)}<br>Lon: ${node.lon.toFixed(5)}`, { closeButton: false, maxWidth: 200 })
+        .addTo(fg);
+      }
     }
 
     this.graphLayer = fg;
