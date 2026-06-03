@@ -2890,13 +2890,13 @@ const GraphDebug = {
 
         L.polyline(coords, {
           color: col,
-          weight:  hasRoute ? 1 : 2,
+          weight:  hasRoute ? 3 : 4,
           opacity: hasRoute ? 0.18 : 0.55,
           dashArray: edge.mult > 1.08 ? '4 3' : null,
           interactive: false,
         }).addTo(fg);
 
-        L.polyline(coords, { weight: 12, opacity: 0, interactive: true })
+        L.polyline(coords, { weight: 14, opacity: 0, interactive: true })
           .bindPopup(makeEdgePopup(edge, col), { maxWidth: 260 })
           .addTo(fg);
       }
@@ -2906,11 +2906,8 @@ const GraphDebug = {
     for (const [nodeId, node] of Object.entries(graph.nodes)) {
       if (hasRoute && routeNodeSet.has(nodeId)) continue;
 
-      const isLargeComponent = nodeId in componentColor &&
-        stats.components.some(c => c.has(nodeId) && c.size === stats.largestComponent);
-
       L.circleMarker([node.lat, node.lon], {
-        radius:      hasRoute ? 2 : (isLargeComponent ? 5 : 3),
+        radius:      hasRoute ? 1 : 2,
         fillColor:   componentColor[nodeId] || '#999',
         color:       'rgba(0,0,0,0.3)',
         weight:      1,
@@ -2925,12 +2922,12 @@ const GraphDebug = {
     // ── Paso 3: edges DE la ruta (encima, inflados) ─────────────
     for (const { coords, col, edge } of routeEdgesBuf) {
       L.polyline(coords, {
-        color: col, weight: 6, opacity: 1.0,
-        dashArray: edge.mult > 1.08 ? '8 4' : null,
+        color: col, weight: 10, opacity: 1.0,
+        dashArray: edge.mult > 1.08 ? '10 5' : null,
         interactive: false,
       }).addTo(fg);
 
-      L.polyline(coords, { weight: 18, opacity: 0, interactive: true })
+      L.polyline(coords, { weight: 20, opacity: 0, interactive: true })
         .bindPopup(makeEdgePopup(edge, col), { maxWidth: 260 })
         .addTo(fg);
     }
@@ -2944,11 +2941,8 @@ const GraphDebug = {
         const node = graph.nodes[nodeId];
         if (!node) continue;
 
-        const isLargeComponent = nodeId in componentColor &&
-          stats.components.some(c => c.has(nodeId) && c.size === stats.largestComponent);
-
         L.circleMarker([node.lat, node.lon], {
-          radius:      isLargeComponent ? 9 : 7,
+          radius:      4,
           fillColor:   componentColor[nodeId] || '#999',
           color:       'rgba(255,255,255,0.85)',
           weight:      2,
