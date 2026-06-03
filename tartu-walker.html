@@ -2794,28 +2794,7 @@ const GraphDebug = {
     if (this.parkLayer) { MapRenderer.map.removeLayer(this.parkLayer); this.parkLayer = null; }
     if (this.graphLayer) MapRenderer.map.removeLayer(this.graphLayer);
 
-    // Polígonos de parques (capa inferior)
-    if (parkPolygons.length) {
-      const pg = L.featureGroup();
-      for (const { coords } of parkPolygons) {
-        L.polygon(coords, {
-          color: '#34D399',
-          weight: 2,
-          opacity: 0.9,
-          fillColor: '#34D399',
-          fillOpacity: 0.28,
-          interactive: false,
-        }).addTo(pg);
-      }
-      this.parkLayer = pg;
-      MapRenderer.map.addLayer(pg);
-    }
-
-    const fg = L.featureGroup();
-    const stats = this.computeStats(graph);
-    this.stats = stats;
-
-    // Determinar nodos y aristas pertenecientes a la ruta calculada
+    // Determinar si hay ruta calculada (necesario antes de dibujar parques)
     const routePath = App.lastPath;
     const routeNodeSet = new Set();
     const routeEdgeSet = new Set();
@@ -2827,6 +2806,27 @@ const GraphDebug = {
       }
     }
     const hasRoute = routeNodeSet.size > 0;
+
+    // Polígonos de parques (capa inferior)
+    if (parkPolygons.length) {
+      const pg = L.featureGroup();
+      for (const { coords } of parkPolygons) {
+        L.polygon(coords, {
+          color: '#34D399',
+          weight: hasRoute ? 1 : 2,
+          opacity: hasRoute ? 0.3 : 0.9,
+          fillColor: '#34D399',
+          fillOpacity: hasRoute ? 0.06 : 0.28,
+          interactive: false,
+        }).addTo(pg);
+      }
+      this.parkLayer = pg;
+      MapRenderer.map.addLayer(pg);
+    }
+
+    const fg = L.featureGroup();
+    const stats = this.computeStats(graph);
+    this.stats = stats;
 
     // Color por componente conectado
     const componentColor = {};
