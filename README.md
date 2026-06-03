@@ -81,11 +81,9 @@ Detailed technical documentation is available in [/documentation](documentation/
 
 This project is supported by the following institutions:
 
-| Institution | Role |
-|---|---|
-| **EIT DTN** — European Institute of Innovation and Technology, Doctoral Training Network | Research funding |
-| **INSIA** — Instituto de Investigación del Automóvil, Universidad Politécnica de Madrid | Research support |
-| **UPM ETSISI** — Escuela Técnica Superior de Ingeniería de Sistemas Informáticos, Universidad Politécnica de Madrid | Academic affiliation |
+- **EIT DTN** — European Institute of Innovation and Technology, Doctoral Training Network
+- **INSIA** — Instituto de Investigación del Automóvil, Universidad Politécnica de Madrid
+- **UPM ETSISI** — Escuela Técnica Superior de Ingeniería de Sistemas Informáticos, Universidad Politécnica de Madrid
 
 ---
 
