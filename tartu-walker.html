@@ -1985,6 +1985,7 @@ const POIFetcher = {
 // ════════════════════════════════════════════════════════════════
 const MapRenderer = {
   map:           null,
+  tileLayer:     null,
   routeLayer:    null,
   poiLayer:      null,
   previewLayer:  null,
@@ -1995,7 +1996,7 @@ const MapRenderer = {
     this.map = L.map('map', { zoomControl: false })
       .setView(CONFIG.MAP.CENTER, CONFIG.MAP.ZOOM);
 
-    L.tileLayer(CONFIG.MAP.TILE, { attribution: CONFIG.MAP.ATTR, maxZoom: 19 })
+    this.tileLayer = L.tileLayer(CONFIG.MAP.TILE, { attribution: CONFIG.MAP.ATTR, maxZoom: 19 })
       .addTo(this.map);
 
     L.control.zoom({ position: 'bottomright' }).addTo(this.map);
@@ -2891,7 +2892,7 @@ const GraphDebug = {
         L.polyline(coords, {
           color: col,
           weight:  hasRoute ? 3 : 4,
-          opacity: hasRoute ? 0.45 : 0.55,
+          opacity: hasRoute ? 0.65 : 0.75,
           dashArray: edge.mult > 1.08 ? '4 3' : null,
           interactive: false,
         }).addTo(fg);
@@ -2911,8 +2912,8 @@ const GraphDebug = {
         fillColor:   componentColor[nodeId] || '#999',
         color:       'rgba(0,0,0,0.3)',
         weight:      1,
-        opacity:     hasRoute ? 0.7 : 1,
-        fillOpacity: hasRoute ? 0.6 : 0.8,
+        opacity:     1,
+        fillOpacity: hasRoute ? 0.85 : 0.8,
       })
       .on('click', () => this.selectNode(graph, nodeId))
       .bindPopup(`Node ${nodeId}<br>Lat: ${node.lat.toFixed(5)}<br>Lon: ${node.lon.toFixed(5)}`, { closeButton: false, maxWidth: 200 })
@@ -3150,10 +3151,12 @@ const GraphDebug = {
     this.enabled = !this.enabled;
 
     if (this.enabled) {
+      MapRenderer.tileLayer?.setOpacity(0.25);
       UI.toast('🐛 DEBUG MODE ON - Press D to deactivate', 'info', 3000);
       const polys = this._parsePolygons(App.parkAreasGeo);
       this.drawGraph(graph, polys);
     } else {
+      MapRenderer.tileLayer?.setOpacity(1);
       if (this.graphLayer) {
         MapRenderer.map.removeLayer(this.graphLayer);
         this.graphLayer = null;
