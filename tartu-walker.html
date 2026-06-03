@@ -2891,7 +2891,7 @@ const GraphDebug = {
         L.polyline(coords, {
           color: col,
           weight:  hasRoute ? 3 : 4,
-          opacity: hasRoute ? 0.18 : 0.55,
+          opacity: hasRoute ? 0.45 : 0.55,
           dashArray: edge.mult > 1.08 ? '4 3' : null,
           interactive: false,
         }).addTo(fg);
@@ -2911,8 +2911,8 @@ const GraphDebug = {
         fillColor:   componentColor[nodeId] || '#999',
         color:       'rgba(0,0,0,0.3)',
         weight:      1,
-        opacity:     hasRoute ? 0.35 : 1,
-        fillOpacity: hasRoute ? 0.25 : 0.8,
+        opacity:     hasRoute ? 0.7 : 1,
+        fillOpacity: hasRoute ? 0.6 : 0.8,
       })
       .on('click', () => this.selectNode(graph, nodeId))
       .bindPopup(`Node ${nodeId}<br>Lat: ${node.lat.toFixed(5)}<br>Lon: ${node.lon.toFixed(5)}`, { closeButton: false, maxWidth: 200 })
