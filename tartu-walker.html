@@ -2717,6 +2717,7 @@ const GraphDebug = {
   parkLayer: null,
   selectedNode: null,
   stats: null,
+  _warningsVisible: true,
 
   /**
    * Análisis de conectividad: detecta componentes desconectados
@@ -3068,8 +3069,8 @@ const GraphDebug = {
           </tr>
         </table>
         ${stats.numComponents > 1 ? `
-        <div style="margin-top:10px; padding:8px; background:rgba(248,113,113,.1); 
-          border-left: 3px solid #F87171; color:#F87171;">
+        <div id="debugWarning" style="margin-top:10px; padding:8px; background:rgba(248,113,113,.1);
+          border-left: 3px solid #F87171; color:#F87171; display:${this._warningsVisible ? 'block' : 'none'};">
           ⚠️  <strong>WARNING:</strong> Graph fragmented into ${stats.numComponents} components.<br/>
           Some nodes are NOT connected to others.
         </div>
@@ -3461,6 +3462,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'd' || e.key === 'D') {
       if (App.graph) GraphDebug.toggle(App.graph);
+    }
+    if ((e.key === 'w' || e.key === 'W') && GraphDebug.enabled) {
+      GraphDebug._warningsVisible = !GraphDebug._warningsVisible;
+      const el = document.getElementById('debugWarning');
+      if (el) el.style.display = GraphDebug._warningsVisible ? 'block' : 'none';
     }
   });
 });
