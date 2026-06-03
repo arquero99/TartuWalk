@@ -89,4 +89,8 @@ This project is supported by the following institutions:
 
 ## License
 
-MIT
+This project is licensed under **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)**.
+
+You are free to use, study, and adapt this work for non-commercial purposes, provided you give appropriate credit and distribute any derivative works under the same license. Commercial use of this project or any derivative work is not permitted without explicit written permission from the authors.
+
+See the [LICENSE](LICENSE) file for the full license text.
