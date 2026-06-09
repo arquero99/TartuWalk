@@ -33,7 +33,7 @@ const OVERPASS_ENDPOINTS = [
   'https://overpass.kumi.systems/api/interpreter',
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ];
-const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+const RETRYABLE = new Set([429, 500, 502, 503, 504, 524]);
 
 // ════════════════════════════════════════════════════════════════
 // OVERPASS PROXY
@@ -64,7 +64,7 @@ app.post('/api/overpass', async (req, res) => {
             'User-Agent':   'TartuWalk/1.0 (+https://github.com/yourusername/TartuWalk)',
           },
           body:    'data=' + encodeURIComponent(query),
-          timeout: 120000,
+          signal:  AbortSignal.timeout(120000),
         });
       } catch (e) {
         console.warn(`Overpass ${endpoint} unreachable: ${e.message}`);

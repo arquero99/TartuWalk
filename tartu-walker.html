@@ -1329,6 +1329,7 @@ const CONFIG = {
   CACHE: {
     TTL_SIMPLE_MS:   24 * 3600e3,   // 24 h  — grafo simplificado de Tartu
     TTL_DETAIL_MS:    6 * 3600e3,   //  6 h  — grafo detallado por bbox
+    TTL_POI_MS:           3600e3,   //  1 h  — POIs por bbox de ruta
     DB: 'tartu_walker_v3',
     VER: 1,
     STORE: 'g',
@@ -1628,7 +1629,7 @@ out ids;`);
     const b = Utils.bboxStr(bbox);
     const lim = CONFIG.POI.MAX_RESULTS;
     return this._post(`
-[out:json][timeout:30];
+[out:json][timeout:30][maxsize:1048576];
 (
   node["amenity"~"^(drinking_water|bench|toilets|fountain|cafe|restaurant|pharmacy|bicycle_parking)$"](${b});
   node["historic"~"^(monument|memorial|statue|ruins|castle)$"](${b});
@@ -1936,14 +1937,20 @@ const POIFetcher = {
   async fetch(path, nodes) {
     if (path.length < 2) return [];
 
-    // Bbox de ruta + buffer
+    // Siempre usar radio máximo (600 m) para el bbox de la query — el slider filtra en memoria
+    const MAX_BUF = 600 / 111000;
     const lats = path.map(id => nodes[id]?.lat).filter(Boolean);
     const lons = path.map(id => nodes[id]?.lon).filter(Boolean);
-    const buf  = CONFIG.POI.BUFFER_DEG;
     const bbox = {
-      S: Math.min(...lats) - buf, W: Math.min(...lons) - buf,
-      N: Math.max(...lats) + buf, E: Math.max(...lons) + buf,
+      S: Math.min(...lats) - MAX_BUF, W: Math.min(...lons) - MAX_BUF,
+      N: Math.max(...lats) + MAX_BUF, E: Math.max(...lons) + MAX_BUF,
     };
+
+    // Caché IndexedDB — evita re-consultar Overpass al mover el slider o recalcular la misma ruta
+    const bboxId   = `${bbox.S.toFixed(3)}_${bbox.W.toFixed(3)}_${bbox.N.toFixed(3)}_${bbox.E.toFixed(3)}`;
+    const cacheKey = `poi_${bboxId}`;
+    const cached   = await Cache.get(cacheKey);
+    if (cached) return cached;
 
     const osmData = await Overpass.fetchPOIs(bbox);
 
@@ -1975,7 +1982,9 @@ const POIFetcher = {
     }
 
     pois.sort((a,b) => a.distToRoute - b.distToRoute);
-    return pois.slice(0, CONFIG.POI.MAX_RESULTS);
+    // Guardar todos los POIs (sin límite) — _visiblePois() aplicará el filtro de radio
+    await Cache.set(cacheKey, pois, CONFIG.CACHE.TTL_POI_MS);
+    return pois;
   },
 };
 
@@ -2614,23 +2623,16 @@ const App = {
 
   // ── POI: slider de radio ─────────────────────────────
   onPoiRadiusSlider(value) {
-    const m    = parseInt(value);
-    const prev = CONFIG.POI.BUFFER_M;
-    const pct  = ((m - 50) / (600 - 50)) * 100;
+    const m   = parseInt(value);
+    const pct = ((m - 50) / (600 - 50)) * 100;
     CONFIG.POI.BUFFER_M   = m;
     CONFIG.POI.BUFFER_DEG = m / 111000;
     document.getElementById('poiRadiusSlider').style.setProperty('--poi-r-pct', pct.toFixed(1));
     document.getElementById('poiRadiusVal').textContent = `${m}m`;
 
-    // Re-render siempre con el nuevo radio (filtro sobre allPois en caché)
+    // Re-render con el nuevo radio — allPois ya cubre 600 m, no hay re-fetch
     UI._renderPoiList();
     MapRenderer.drawPOIs(this._visiblePois());
-
-    // Solo re-fetch al aumentar (pueden existir POIs nuevos fuera del bbox anterior)
-    if (m > prev) {
-      clearTimeout(this._poiRefreshT);
-      this._poiRefreshT = setTimeout(() => this._refreshPOIs(), 700);
-    }
   },
 
   // ── POI: conjunto visible (radio + categoría) ────────
@@ -2641,14 +2643,11 @@ const App = {
     );
   },
 
-  // ── POI: re-fetch tras cambiar radio ─────────────────
-  async _refreshPOIs() {
-    if (!this.lastPath || !this.lastGraph) return;
-    try {
-      const pois = await POIFetcher.fetch(this.lastPath, this.lastGraph.nodes);
-      UI.renderPOIs(pois);
-      MapRenderer.drawPOIs(this._visiblePois());
-    } catch (e) { console.warn('POI refresh:', e); }
+  // ── POI: re-render tras cambiar radio (sin re-fetch — allPois cubre 600 m) ────
+  _refreshPOIs() {
+    if (!this.allPois) return;
+    UI.renderPOIs(this.allPois);
+    MapRenderer.drawPOIs(this._visiblePois());
   },
 
   onPrefSlider(value) {
