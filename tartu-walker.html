@@ -1436,9 +1436,9 @@ const Utils = {
     return `${la.toFixed(5)}°N  ${lo.toFixed(5)}°E`;
   },
 
-  // Reintenta `fn` hasta `retries` veces en errores HTTP transitorios (403/429/500/502/503/504)
+  // Reintenta `fn` hasta `retries` veces en errores HTTP transitorios (403/429/500/502/503/504/524)
   async withRetry(fn, retries = 3, baseMs = 2000) {
-    const retryable = new Set([403, 429, 500, 502, 503, 504]);
+    const retryable = new Set([403, 429, 500, 502, 503, 504, 524]);
     for (let i = 1; i <= retries; i++) {
       try {
         return await fn();
@@ -1626,20 +1626,6 @@ out body;`);
     return { osmData, parkWayIds };
   },
 
-  // Geometría de polígonos de parques/áreas verdes (para visualización en debug)
-  async fetchParkAreas(bbox) {
-    const b = Utils.bboxStr(bbox);
-    return this._post(`
-[out:json][timeout:45];
-(
-  way["leisure"~"^(park|garden|nature_reserve)$"](${b});
-  way["landuse"~"^(forest|recreation_ground|grass|meadow)$"](${b});
-  relation["leisure"~"^(park|garden|nature_reserve)$"](${b});
-  relation["landuse"~"^(forest|recreation_ground|grass|meadow)$"](${b});
-);
-out geom;`);
-  },
-
   // IDs de vías de tránsito que están dentro de áreas verdes
   async fetchParkWayIds(bbox) {
     const b = Utils.bboxStr(bbox);
@@ -1717,6 +1703,40 @@ out ids;`);
     }
 
     return parkWayIds;
+  },
+
+  // Deriva polígonos de parques desde la respuesta de fetchDetailedWithParkIds (out body).
+  // Devuelve [{coords: [[lat,lon],...], tags}] listo para drawGraph, sin llamada extra a Overpass.
+  extractParkPolygons(elements) {
+    const nodeMap = {};
+    for (const el of elements) {
+      if (el.type === 'node') nodeMap[el.id] = { lat: el.lat, lon: el.lon };
+    }
+    const wayNodes = {}, wayTags = {};
+    for (const el of elements) {
+      if (el.type !== 'way') continue;
+      wayTags[el.id]  = el.tags  || {};
+      wayNodes[el.id] = el.nodes || [];
+    }
+    const GREEN_LEISURE = /^(park|garden|nature_reserve)$/;
+    const GREEN_LANDUSE = /^(forest|recreation_ground|grass|meadow)$/;
+    const isGreen = t => GREEN_LEISURE.test(t.leisure || '') || GREEN_LANDUSE.test(t.landuse || '');
+    const polys = [];
+    for (const [id, tags] of Object.entries(wayTags)) {
+      if (!isGreen(tags)) continue;
+      const coords = wayNodes[id].map(nid => nodeMap[nid]).filter(Boolean).map(p => [p.lat, p.lon]);
+      if (coords.length >= 3) polys.push({ coords, tags });
+    }
+    for (const el of elements) {
+      if (el.type !== 'relation' || !isGreen(el.tags || {})) continue;
+      for (const m of el.members || []) {
+        if (m.type === 'way' && m.role === 'outer' && wayNodes[m.ref]) {
+          const coords = wayNodes[m.ref].map(nid => nodeMap[nid]).filter(Boolean).map(p => [p.lat, p.lon]);
+          if (coords.length >= 3) polys.push({ coords, tags: el.tags || {} });
+        }
+      }
+    }
+    return polys;
   },
 
   // POIs a lo largo de la ruta
@@ -2541,12 +2561,10 @@ const App = {
       const bboxId = [bbox.S,bbox.W,bbox.N,bbox.E].map(v=>v.toFixed(3)).join('_');
       const ck  = `detail_${bboxId}`;
       const pk  = `park_${bboxId}`;
-      const pgk = `parkgeo_${bboxId}`;
 
-      let [osmData, cachedParkIds, cachedParkGeo] = await Promise.all([
+      let [osmData, cachedParkIds] = await Promise.all([
         Cache.get(ck),
         Cache.get(pk),
-        Cache.get(pgk),
       ]);
 
       // Una sola query fusionada obtiene el grafo y los IDs de parques
@@ -2560,18 +2578,8 @@ const App = {
       }
       const parkWayIds = cachedParkIds ?? [];
 
-      // Query de geometría de parques en background — solo para modo debug
-      if (!cachedParkGeo) {
-        this.parkAreasGeo = null;
-        Overpass.fetchParkAreas(bbox)
-          .then(data => {
-            this.parkAreasGeo = data;
-            Cache.set(pgk, data, CONFIG.CACHE.TTL_DETAIL_MS).catch(() => {});
-          })
-          .catch(e => console.warn('Park areas geometry no disponible (background):', e));
-      } else {
-        this.parkAreasGeo = cachedParkGeo;
-      }
+      // Deriva polígonos de parques desde osmData (ya en memoria) — sin llamada extra a Overpass
+      this.parkAreasGeo = Overpass.extractParkPolygons(osmData.elements);
 
       // ── 3. Grafo ponderado ──────────────────────────────────
       UI.progress('Building weighted graph…', '03 / 06', 45);
@@ -2858,27 +2866,6 @@ const GraphDebug = {
       avgDegree,
       components,
     };
-  },
-
-  /**
-   * Parsea OSM data de áreas verdes a [{coords, tags}] para Leaflet.
-   * Maneja ways cerrados y relaciones (outer members).
-   */
-  _parsePolygons(osmData) {
-    if (!osmData?.elements) return [];
-    const polys = [];
-    for (const el of osmData.elements) {
-      if (el.type === 'way' && el.geometry && el.geometry.length >= 3) {
-        polys.push({ coords: el.geometry.map(p => [p.lat, p.lon]), tags: el.tags || {} });
-      } else if (el.type === 'relation' && el.members) {
-        for (const m of el.members) {
-          if (m.role === 'outer' && m.geometry && m.geometry.length >= 3) {
-            polys.push({ coords: m.geometry.map(p => [p.lat, p.lon]), tags: el.tags || {} });
-          }
-        }
-      }
-    }
-    return polys;
   },
 
   /**
@@ -3246,8 +3233,7 @@ const GraphDebug = {
     if (this.enabled) {
       MapRenderer.tileLayer?.setOpacity(0.25);
       UI.toast('🐛 DEBUG MODE ON - Press D to deactivate', 'info', 3000);
-      const polys = this._parsePolygons(App.parkAreasGeo);
-      this.drawGraph(graph, polys);
+      this.drawGraph(graph, App.parkAreasGeo ?? []);
     } else {
       MapRenderer.tileLayer?.setOpacity(1);
       if (this.graphLayer) {
