@@ -33,7 +33,7 @@ const OVERPASS_ENDPOINTS = [
   'https://overpass.kumi.systems/api/interpreter',
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ];
-const RETRYABLE = new Set([429, 500, 502, 503, 504, 524]);
+const RETRYABLE = new Set([403, 429, 500, 502, 503, 504, 524]);
 
 // ════════════════════════════════════════════════════════════════
 // OVERPASS PROXY
