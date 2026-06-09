@@ -2101,6 +2101,21 @@ const POIFetcher = {
     await Cache.set(cacheKey, pois, CONFIG.CACHE.TTL_POI_MS);
     return pois;
   },
+
+  // Recalcula distToRoute para POIs ya en memoria usando una nueva ruta (sin red)
+  recalcDistances(pois, path, nodes) {
+    for (const poi of pois) {
+      let minD = Infinity;
+      for (let i = 0; i < path.length; i += 2) {
+        const n = nodes[path[i]];
+        if (n) minD = Math.min(minD, Utils.haversine(poi.lat, poi.lon, n.lat, n.lon));
+      }
+      const last = nodes[path.at(-1)];
+      if (last) minD = Math.min(minD, Utils.haversine(poi.lat, poi.lon, last.lat, last.lon));
+      poi.distToRoute = minD;
+    }
+    pois.sort((a, b) => a.distToRoute - b.distToRoute);
+  },
 };
 
 
@@ -2536,6 +2551,8 @@ const App = {
   async calculateRoute() {
     const addrA = document.getElementById('inputA').value.trim();
     const addrB = document.getElementById('inputB').value.trim();
+    const prevLocA = App.snapInfo?.locA;
+    const prevLocB = App.snapInfo?.locB;
 
     if (!addrA || !addrB) {
       UI.toast('Enter origin and destination to calculate.', 'error'); return;
@@ -2643,9 +2660,22 @@ const App = {
 
       // POIs (puede fallar sin romper el flujo principal)
       try {
-        const pois = await POIFetcher.fetch(path, graph.nodes);
-        UI.renderPOIs(pois);
-        MapRenderer.drawPOIs(App._visiblePois());
+        const sameEndpoints = App.allPois?.length > 0 && prevLocA && prevLocB &&
+          Math.abs(prevLocA.lat - locA.lat) < 0.0005 &&
+          Math.abs(prevLocA.lon - locA.lon) < 0.0005 &&
+          Math.abs(prevLocB.lat - locB.lat) < 0.0005 &&
+          Math.abs(prevLocB.lon - locB.lon) < 0.0005;
+
+        if (sameEndpoints) {
+          // Mismos endpoints, slider diferente — recalcular distancias sin red
+          POIFetcher.recalcDistances(App.allPois, path, graph.nodes);
+          UI._renderPoiList();
+          MapRenderer.drawPOIs(App._visiblePois());
+        } else {
+          const pois = await POIFetcher.fetch(path, graph.nodes);
+          UI.renderPOIs(pois);
+          MapRenderer.drawPOIs(App._visiblePois());
+        }
       } catch (e) { console.warn('POIs no disponibles:', e); }
 
       UI.overlay(false);
