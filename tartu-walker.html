@@ -2669,6 +2669,7 @@ const App = {
         if (sameEndpoints) {
           // Mismos endpoints, slider diferente — recalcular distancias sin red
           POIFetcher.recalcDistances(App.allPois, path, graph.nodes);
+          document.getElementById('poiSection')?.classList.remove('hidden');
           UI._renderPoiList();
           MapRenderer.drawPOIs(App._visiblePois());
         } else {
